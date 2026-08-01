@@ -42,6 +42,46 @@ export default function App() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  const sectionToHash = useMemo(
+    () => ({
+      Home: '',
+      Analytics: 'analytics',
+      Projects: 'projects',
+      Settings: 'settings',
+    }),
+    []
+  );
+
+  const hashToSection = useMemo(
+    () => Object.fromEntries(Object.entries(sectionToHash).filter(([, hash]) => hash).map(([section, hash]) => [hash, section])),
+    [sectionToHash]
+  );
+
+  useEffect(() => {
+    const hash = window.location.hash.replace('#', '');
+    setActiveItem(hash && hashToSection[hash] ? hashToSection[hash] : 'Home');
+  }, [hashToSection]);
+
+  useEffect(() => {
+    const nextHash = sectionToHash[activeItem] ? `#${sectionToHash[activeItem]}` : '';
+    const currentHash = window.location.hash;
+
+    if (currentHash !== nextHash) {
+      const nextUrl = `${window.location.pathname}${window.location.search}${nextHash}`;
+      window.history.pushState({}, '', nextUrl);
+    }
+  }, [activeItem, sectionToHash]);
+
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.replace('#', '');
+      setActiveItem(hash && hashToSection[hash] ? hashToSection[hash] : 'Home');
+    };
+
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, [hashToSection]);
+
   const menuItems = useMemo(
     () => [
       { name: 'Home' },
