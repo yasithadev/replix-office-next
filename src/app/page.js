@@ -50,22 +50,25 @@ export default function App() {
 
   const sectionToHash = useMemo(
     () => ({
-      Home: '',
-      Analytics: 'analytics',
-      Projects: 'projects',
-      Settings: 'settings',
+      Home: 'dashboard/home',
+      Analytics: 'dashboard/analytics',
+      Projects: 'dashboard/projects',
+      Settings: 'dashboard/settings',
+      'Create User': 'dashboard/user-management/create-user',
+      'Modify User': 'dashboard/user-management/modify-user',
     }),
     []
   );
 
   const hashToSection = useMemo(
-    () => Object.fromEntries(Object.entries(sectionToHash).filter(([, hash]) => hash).map(([section, hash]) => [hash, section])),
+    () => Object.fromEntries(Object.entries(sectionToHash).map(([section, hash]) => [hash, section])),
     [sectionToHash]
   );
 
   useEffect(() => {
     const hash = window.location.hash.replace('#', '');
-    setActiveItem(hash && hashToSection[hash] ? hashToSection[hash] : 'Home');
+    const matchedSection = hash && hashToSection[hash] ? hashToSection[hash] : 'Home';
+    setActiveItem(matchedSection);
   }, [hashToSection]);
 
   useEffect(() => {
@@ -81,7 +84,8 @@ export default function App() {
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.replace('#', '');
-      setActiveItem(hash && hashToSection[hash] ? hashToSection[hash] : 'Home');
+      const matchedSection = hash && hashToSection[hash] ? hashToSection[hash] : 'Home';
+      setActiveItem(matchedSection);
     };
 
     window.addEventListener('hashchange', handleHashChange);
