@@ -1,5 +1,27 @@
-"use client";
-import React, { useState, useEffect } from 'react';
+﻿"use client";
+
+import dynamic from 'next/dynamic';
+import React, { useEffect, useMemo, useState } from 'react';
+
+const DashboardSection = dynamic(() => import('./components/sections/DashboardSection'), {
+  ssr: false,
+  loading: () => <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">Loading dashboard…</div>,
+});
+
+const AnalyticsSection = dynamic(() => import('./components/sections/AnalyticsSection'), {
+  ssr: false,
+  loading: () => <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">Loading analytics…</div>,
+});
+
+const ProjectsSection = dynamic(() => import('./components/sections/ProjectsSection'), {
+  ssr: false,
+  loading: () => <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">Loading projects…</div>,
+});
+
+const SettingsSection = dynamic(() => import('./components/sections/SettingsSection'), {
+  ssr: false,
+  loading: () => <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">Loading settings…</div>,
+});
 
 const Icons = {
   Home: (props) => (
@@ -43,7 +65,7 @@ const Icons = {
     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
       <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.603 10.603Z" />
     </svg>
-  )
+  ),
 };
 
 export default function App() {
@@ -52,49 +74,55 @@ export default function App() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Close menus on resize if the viewport exceeds mobile threshold
   useEffect(() => {
     const handleResize = () => {
       if (window.innerWidth >= 768) {
         setSidebarOpen(false);
       }
     };
+
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const menuItems = [
-    { name: 'Home', icon: Icons.Home },
-    { name: 'Analytics', icon: Icons.Analytics },
-    { name: 'Projects', icon: Icons.Projects },
-    { name: 'Settings', icon: Icons.Settings },
-  ];
+  const menuItems = useMemo(
+    () => [
+      { name: 'Home', icon: Icons.Home },
+      { name: 'Analytics', icon: Icons.Analytics },
+      { name: 'Projects', icon: Icons.Projects },
+      { name: 'Settings', icon: Icons.Settings },
+    ],
+    []
+  );
+
+  const contentMap = useMemo(
+    () => ({
+      Home: <DashboardSection />,
+      Analytics: <AnalyticsSection />,
+      Projects: <ProjectsSection />,
+      Settings: <SettingsSection />,
+    }),
+    []
+  );
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans selection:bg-indigo-500 selection:text-white">
-
-      { }
       <header className="sticky top-0 z-40 flex h-16 w-full items-center justify-between border-b border-slate-200 bg-white px-4 shadow-sm md:px-6">
         <div className="flex items-center gap-3">
-          {/* Mobile Menu Button */}
           <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
+            onClick={() => setSidebarOpen((value) => !value)}
             className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 md:hidden"
             aria-label="Toggle Sidebar"
           >
             <Icons.Menu className="h-6 w-6" />
           </button>
 
-          {/* Brand Logo */}
           <div className="flex items-center gap-2">
-            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-600 font-bold text-white shadow-md shadow-indigo-100">
-              N
-            </span>
-            <span className="text-xl font-bold tracking-tight text-slate-900 hidden sm:block">NextLayout</span>
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-600 font-bold text-white shadow-md shadow-indigo-100">N</span>
+            <span className="hidden text-xl font-bold tracking-tight text-slate-900 sm:block">NextLayout</span>
           </div>
         </div>
 
-        {/* Search Bar */}
         <div className="hidden max-w-md flex-1 px-8 sm:block">
           <div className="relative">
             <span className="absolute inset-y-0 left-3 flex items-center text-slate-400">
@@ -104,29 +132,27 @@ export default function App() {
               type="text"
               placeholder="Search anything..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(event) => setSearchQuery(event.target.value)}
               className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-10 pr-4 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100 transition-all duration-200"
             />
           </div>
         </div>
 
-        {/* User profile & Notifications */}
         <div className="flex items-center gap-4">
           <button className="relative flex h-10 w-10 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500">
             <span className="absolute right-2.5 top-2.5 flex h-2 w-2 rounded-full bg-indigo-600"></span>
             <Icons.Notifications className="h-6 w-6" />
           </button>
 
-          {/* User Dropdown */}
           <div className="relative">
             <button
-              onClick={() => setProfileOpen(!profileOpen)}
+              onClick={() => setProfileOpen((value) => !value)}
               className="flex items-center gap-2 rounded-full p-1 focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
               <img
                 src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=256&auto=format&fit=crop"
                 alt="Profile Avatar"
-                className="h-9 w-9 rounded-full object-cover border border-slate-100 shadow-sm"
+                className="h-9 w-9 rounded-full border border-slate-100 object-cover shadow-sm"
               />
               <span className="hidden text-sm font-medium text-slate-700 md:block">Sarah Connor</span>
             </button>
@@ -134,12 +160,12 @@ export default function App() {
             {profileOpen && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setProfileOpen(false)}></div>
-                <div className="absolute right-0 mt-2 z-50 w-52 origin-top-right rounded-xl border border-slate-200 bg-white p-2 shadow-xl ring-1 ring-black ring-opacity-5">
-                  <div className="px-3 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">My Account</div>
-                  <button className="w-full text-left px-3 py-2 text-sm rounded-lg text-slate-700 hover:bg-slate-50">Profile Settings</button>
-                  <button className="w-full text-left px-3 py-2 text-sm rounded-lg text-slate-700 hover:bg-slate-50">Billing</button>
+                <div className="absolute right-0 z-50 mt-2 w-52 origin-top-right rounded-xl border border-slate-200 bg-white p-2 shadow-xl ring-1 ring-black ring-opacity-5">
+                  <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-slate-400">My Account</div>
+                  <button className="w-full rounded-lg px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50">Profile Settings</button>
+                  <button className="w-full rounded-lg px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50">Billing</button>
                   <hr className="my-1 border-slate-100" />
-                  <button className="w-full text-left px-3 py-2 text-sm rounded-lg text-red-600 hover:bg-red-50">Sign Out</button>
+                  <button className="w-full rounded-lg px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50">Sign Out</button>
                 </div>
               </>
             )}
@@ -147,10 +173,7 @@ export default function App() {
         </div>
       </header>
 
-      {/* Main Container */}
       <div className="flex flex-1">
-
-        { }
         {sidebarOpen && (
           <div
             className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm transition-opacity duration-300 md:hidden"
@@ -158,13 +181,8 @@ export default function App() {
           />
         )}
 
-        { }
-        <aside className={`
-          fixed bottom-0 top-0 left-0 z-50 w-64 border-r border-slate-200 bg-white p-4 transition-transform duration-300 ease-in-out md:sticky md:top-16 md:z-30 md:h-[calc(100vh-4rem)] md:translate-x-0
-          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-        `}>
-          {/* Close button inside mobile menu */}
-          <div className="flex items-center justify-between mb-6 md:hidden">
+        <aside className={`fixed bottom-0 left-0 top-0 z-50 w-64 border-r border-slate-200 bg-white p-4 transition-transform duration-300 ease-in-out md:sticky md:top-16 md:z-30 md:h-[calc(100vh-4rem)] md:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+          <div className="mb-6 flex items-center justify-between md:hidden">
             <span className="font-bold text-slate-900">Navigation</span>
             <button
               onClick={() => setSidebarOpen(false)}
@@ -178,17 +196,15 @@ export default function App() {
             {menuItems.map((item) => {
               const Icon = item.icon;
               const isActive = activeItem === item.name;
+
               return (
                 <button
                   key={item.name}
                   onClick={() => {
                     setActiveItem(item.name);
-                    setSidebarOpen(false); // Close on mobile navigation
+                    setSidebarOpen(false);
                   }}
-                  className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200 ${isActive
-                      ? 'bg-indigo-50 text-indigo-700'
-                      : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                    }`}
+                  className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200 ${isActive ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}
                 >
                   <Icon className={`h-5 w-5 transition-transform ${isActive ? 'scale-110' : ''}`} />
                   {item.name}
@@ -196,121 +212,21 @@ export default function App() {
               );
             })}
           </nav>
-
-          <div className="absolute bottom-4 left-4 right-4 rounded-xl bg-gradient-to-tr from-indigo-500 to-indigo-600 p-4 text-white shadow-lg shadow-indigo-100">
-            <h4 className="font-bold text-sm">Need help?</h4>
-            <p className="text-xs text-indigo-100 mt-1">Check out our visual developer components and system templates.</p>
-            <button className="mt-3 w-full rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-indigo-700 shadow hover:bg-slate-50 transition-colors">
-              Read Docs
-            </button>
-          </div>
         </aside>
 
-        { }
-        <main className="flex-1 px-4 py-6 md:px-8 max-w-7xl mx-auto w-full">
-          {/* Breadcrumb / Top Title */}
-          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between mb-8">
+        <main className="mx-auto flex-1 w-full max-w-7xl px-4 py-6 md:px-8">
+          <div className="mb-8 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
             <div>
-              <div className="flex items-center gap-2 text-xs font-medium text-slate-400 uppercase tracking-wider">
+              <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-slate-400">
                 <span>Dashboard</span>
                 <span>/</span>
-                <span className="text-indigo-600 font-semibold">{activeItem}</span>
+                <span className="font-semibold text-indigo-600">{activeItem}</span>
               </div>
-              <h1 className="text-2xl font-bold text-slate-900 mt-1">{activeItem} Dashboard</h1>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors">
-                Share Layout
-              </button>
-              <button className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-md shadow-indigo-100 hover:bg-indigo-700 transition-colors">
-                New Project
-              </button>
+              <h1 className="mt-1 text-2xl font-bold text-slate-900">{activeItem} Dashboard</h1>
             </div>
           </div>
 
-          {/* Dashboard Stats Panel */}
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-8">
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm hover:shadow-md transition-shadow">
-              <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Revenue</div>
-              <div className="text-2xl font-bold text-slate-900 mt-2">$45,231.89</div>
-              <div className="text-xs text-emerald-600 font-semibold mt-1">↑ +20.1% from last month</div>
-            </div>
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm hover:shadow-md transition-shadow">
-              <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Active Users</div>
-              <div className="text-2xl font-bold text-slate-900 mt-2">+2,350</div>
-              <div className="text-xs text-emerald-600 font-semibold mt-1">↑ +180.1% from last month</div>
-            </div>
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm hover:shadow-md transition-shadow">
-              <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Conversion Rate</div>
-              <div className="text-2xl font-bold text-slate-900 mt-2">12.24%</div>
-              <div className="text-xs text-red-600 font-semibold mt-1">↓ -4.1% from last week</div>
-            </div>
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm hover:shadow-md transition-shadow">
-              <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Performance</div>
-              <div className="text-2xl font-bold text-slate-900 mt-2">99.2%</div>
-              <div className="text-xs text-emerald-600 font-semibold mt-1">↑ +1.2% this sprint</div>
-            </div>
-          </div>
-
-          {/* Layout Demo Wireframe Components */}
-          <div className="grid gap-6 lg:grid-cols-3">
-            <div className="lg:col-span-2 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold text-slate-900">Recent Projects</h3>
-                <span className="text-xs text-indigo-600 font-semibold hover:underline cursor-pointer">View all</span>
-              </div>
-              <div className="space-y-4">
-                {[1, 2, 3].map((num) => (
-                  <div key={num} className="flex items-center justify-between p-3 border border-slate-100 rounded-xl hover:bg-slate-50 transition-colors">
-                    <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold">
-                        P{num}
-                      </div>
-                      <div>
-                        <div className="font-semibold text-sm text-slate-800">Production App Deploy #{num}</div>
-                        <div className="text-xs text-slate-400">Modified 2 hours ago</div>
-                      </div>
-                    </div>
-                    <span className="inline-flex items-center rounded-md bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
-                      Active
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm flex flex-col justify-between">
-              <div>
-                <h3 className="text-lg font-bold text-slate-900 mb-2">Team Activity</h3>
-                <p className="text-xs text-slate-400 mb-4">Realtime tracking updates</p>
-                <div className="space-y-4">
-                  <div className="flex gap-3">
-                    <div className="w-1.5 h-1.5 rounded-full bg-indigo-600 mt-2"></div>
-                    <div>
-                      <div className="text-sm font-semibold text-slate-800">Dev team merged PR #231</div>
-                      <div className="text-xs text-slate-400">10 mins ago</div>
-                    </div>
-                  </div>
-                  <div className="flex gap-3">
-                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-2"></div>
-                    <div>
-                      <div className="text-sm font-semibold text-slate-800">Server load normalized</div>
-                      <div className="text-xs text-slate-400">45 mins ago</div>
-                    </div>
-                  </div>
-                  <div className="flex gap-3">
-                    <div className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-2"></div>
-                    <div>
-                      <div className="text-sm font-semibold text-slate-800">New support request raised</div>
-                      <div className="text-xs text-slate-400">3 hours ago</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
+          <div className="min-h-[300px]">{contentMap[activeItem]}</div>
         </main>
       </div>
     </div>
