@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { useState } from 'react';
 
 const Icons = {
   Home: (props) => (
@@ -30,9 +30,69 @@ const Icons = {
       <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
     </svg>
   ),
+  ChevronRight: (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+    </svg>
+  ),
 };
 
+function isActiveItem(activeItem, item) {
+  if (!item) return false;
+  if (activeItem === item.name) return true;
+  return Boolean(item.children?.some((child) => isActiveItem(activeItem, child)));
+}
+
 export default function SideBar({ open, onClose, menuItems, activeItem, onSelectItem }) {
+  const [openGroups, setOpenGroups] = useState({});
+
+  const toggleGroup = (name) => {
+    setOpenGroups((current) => ({ ...current, [name]: !current[name] }));
+  };
+
+  const renderItem = (item, depth = 0) => {
+    const hasChildren = Boolean(item.children?.length);
+    const expanded = openGroups[item.name];
+    const itemIsActive = isActiveItem(activeItem, item);
+
+    return (
+      <div key={item.name} className="space-y-1">
+        <button
+          type="button"
+          onClick={() => {
+            if (hasChildren) {
+              toggleGroup(item.name);
+              return;
+            }
+
+            onSelectItem(item.name);
+            onClose();
+          }}
+          className={`flex w-full items-center justify-between gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200 ${itemIsActive ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}
+          style={{ paddingLeft: `${depth * 0.75 + 1}rem` }}
+        >
+          <span className="flex items-center gap-3">
+            {(item.icon || Icons[item.name]) && (() => {
+              const Icon = item.icon ?? Icons[item.name];
+              return <Icon className={`h-5 w-5 transition-transform ${itemIsActive ? 'scale-110' : ''}`} />;
+            })()}
+            {item.name}
+          </span>
+
+          {hasChildren ? (
+            <Icons.ChevronRight className={`h-4 w-4 transition-transform ${expanded ? 'rotate-90' : ''}`} />
+          ) : null}
+        </button>
+
+        {hasChildren && expanded ? (
+          <div className="mt-1 space-y-1 border-l border-slate-200 pl-3">
+            {item.children.map((child) => renderItem(child, depth + 1))}
+          </div>
+        ) : null}
+      </div>
+    );
+  };
+
   return (
     <>
       {open && (
@@ -54,24 +114,7 @@ export default function SideBar({ open, onClose, menuItems, activeItem, onSelect
         </div>
 
         <nav className="space-y-1">
-          {menuItems.map((item) => {
-            const Icon = item.icon ?? Icons[item.name];
-            const isActive = activeItem === item.name;
-
-            return (
-              <button
-                key={item.name}
-                onClick={() => {
-                  onSelectItem(item.name);
-                  onClose();
-                }}
-                className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200 ${isActive ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}
-              >
-                <Icon className={`h-5 w-5 transition-transform ${isActive ? 'scale-110' : ''}`} />
-                {item.name}
-              </button>
-            );
-          })}
+          {menuItems.map((item) => renderItem(item))}
         </nav>
       </aside>
     </>

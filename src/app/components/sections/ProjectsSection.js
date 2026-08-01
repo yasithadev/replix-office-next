@@ -1,5 +1,10 @@
 'use client';
 
+export const pageMeta = {
+  title: 'Projects Dashboard',
+  breadcrumb: ['Dashboard', 'Projects'],
+};
+
 export default function ProjectsSection() {
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">

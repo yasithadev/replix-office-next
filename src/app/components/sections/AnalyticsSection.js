@@ -1,5 +1,10 @@
 'use client';
 
+export const pageMeta = {
+  title: 'Analytics Dashboard',
+  breadcrumb: [],
+};
+
 export default function AnalyticsSection() {
   return (
     <div className="grid gap-6 lg:grid-cols-2">

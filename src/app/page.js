@@ -4,23 +4,29 @@ import dynamic from 'next/dynamic';
 import React, { useEffect, useMemo, useState } from 'react';
 import SideBar from '../components/SideBar';
 import TopNav from '../components/TopNav';
+import { pageMeta as dashboardMeta } from './components/sections/DashboardSection';
+import { pageMeta as analyticsMeta } from './components/sections/AnalyticsSection';
+import { pageMeta as projectsMeta } from './components/sections/ProjectsSection';
+import { pageMeta as settingsMeta } from './components/sections/SettingsSection';
+import CreateUserContent, { pageMeta as createUserMeta } from './user-management/components/CreateUserContent';
+import ModifyUserContent, { pageMeta as modifyUserMeta } from './user-management/components/ModifyUserContent';
 
-const DashboardSection = dynamic(() => import('./components/sections/DashboardSection'), {
+const DashboardSection = dynamic(() => import('./components/sections/DashboardSection').then((mod) => mod.default), {
   ssr: false,
   loading: () => <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">Loading dashboard…</div>,
 });
 
-const AnalyticsSection = dynamic(() => import('./components/sections/AnalyticsSection'), {
+const AnalyticsSection = dynamic(() => import('./components/sections/AnalyticsSection').then((mod) => mod.default), {
   ssr: false,
   loading: () => <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">Loading analytics…</div>,
 });
 
-const ProjectsSection = dynamic(() => import('./components/sections/ProjectsSection'), {
+const ProjectsSection = dynamic(() => import('./components/sections/ProjectsSection').then((mod) => mod.default), {
   ssr: false,
   loading: () => <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">Loading projects…</div>,
 });
 
-const SettingsSection = dynamic(() => import('./components/sections/SettingsSection'), {
+const SettingsSection = dynamic(() => import('./components/sections/SettingsSection').then((mod) => mod.default), {
   ssr: false,
   loading: () => <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">Loading settings…</div>,
 });
@@ -88,19 +94,59 @@ export default function App() {
       { name: 'Analytics' },
       { name: 'Projects' },
       { name: 'Settings' },
+      {
+        name: 'User Management',
+        children: [
+          {
+            name: 'Operations',
+            children: [
+              { name: 'Create User' },
+              { name: 'Modify User' },
+            ],
+          },
+        ],
+      },
     ],
     []
   );
 
   const contentMap = useMemo(
     () => ({
-      Home: <DashboardSection />,
-      Analytics: <AnalyticsSection />,
-      Projects: <ProjectsSection />,
-      Settings: <SettingsSection />,
+      Home: {
+        title: dashboardMeta.title,
+        breadcrumb: dashboardMeta.breadcrumb,
+        content: <DashboardSection />,
+      },
+      Analytics: {
+        title: analyticsMeta.title,
+        breadcrumb: analyticsMeta.breadcrumb,
+        content: <AnalyticsSection />,
+      },
+      Projects: {
+        title: projectsMeta.title,
+        breadcrumb: projectsMeta.breadcrumb,
+        content: <ProjectsSection />,
+      },
+      Settings: {
+        title: settingsMeta.title,
+        breadcrumb: settingsMeta.breadcrumb,
+        content: <SettingsSection />,
+      },
+      'Create User': {
+        title: createUserMeta.title,
+        breadcrumb: createUserMeta.breadcrumb,
+        content: <CreateUserContent />,
+      },
+      'Modify User': {
+        title: modifyUserMeta.title,
+        breadcrumb: modifyUserMeta.breadcrumb,
+        content: <ModifyUserContent />,
+      },
     }),
     []
   );
+
+  const currentView = contentMap[activeItem] || contentMap.Home;
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans selection:bg-indigo-500 selection:text-white">
@@ -122,18 +168,21 @@ export default function App() {
         />
 
         <main className="mx-auto flex-1 w-full max-w-7xl px-4 py-6 md:px-8">
-          <div className="mb-8 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+          <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
             <div>
               <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-slate-400">
-                <span>Dashboard</span>
-                <span>/</span>
-                <span className="font-semibold text-indigo-600">{activeItem}</span>
+                {currentView.breadcrumb.map((item, index) => (
+                  <React.Fragment key={`${item}-${index}`}>
+                    {index > 0 ? <span>/</span> : null}
+                    <span className={index === currentView.breadcrumb.length - 1 ? 'font-semibold text-indigo-600' : ''}>{item}</span>
+                  </React.Fragment>
+                ))}
               </div>
-              <h1 className="mt-1 text-2xl font-bold text-slate-900">{activeItem} Dashboard</h1>
+              <h1 className="mt-2 text-2xl font-bold text-slate-900">{currentView.title}</h1>
             </div>
           </div>
 
-          <div className="min-h-[300px]">{contentMap[activeItem]}</div>
+          <div className="min-h-[300px]">{currentView.content}</div>
         </main>
       </div>
     </div>

@@ -1,5 +1,10 @@
 'use client';
 
+export const pageMeta = {
+  title: 'Home Dashboard',
+  breadcrumb: ['Dashboard', 'Home'],
+};
+
 export default function DashboardSection() {
   return (
     <div className="space-y-8">
