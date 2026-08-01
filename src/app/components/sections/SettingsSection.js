@@ -3,6 +3,7 @@
 export const pageMeta = {
   title: 'Settings Dashboard',
   breadcrumb: ['Dashboard', 'Settings'],
+  active: false
 };
 
 export default function SettingsSection() {

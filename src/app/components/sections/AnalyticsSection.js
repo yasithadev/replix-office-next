@@ -2,6 +2,7 @@
 
 export const pageMeta = {
   title: 'Analytics Dashboard',
+  active: false,
   breadcrumb: [],
 };
 

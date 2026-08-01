@@ -119,31 +119,37 @@ export default function App() {
       Home: {
         title: dashboardMeta.title,
         breadcrumb: dashboardMeta.breadcrumb,
+        active: dashboardMeta.active ?? true,
         content: <DashboardSection />,
       },
       Analytics: {
         title: analyticsMeta.title,
         breadcrumb: analyticsMeta.breadcrumb,
+        active: analyticsMeta.active ?? true,
         content: <AnalyticsSection />,
       },
       Projects: {
         title: projectsMeta.title,
         breadcrumb: projectsMeta.breadcrumb,
+        active: projectsMeta.active ?? true,
         content: <ProjectsSection />,
       },
       Settings: {
         title: settingsMeta.title,
         breadcrumb: settingsMeta.breadcrumb,
+        active: settingsMeta.active ?? true,
         content: <SettingsSection />,
       },
       'Create User': {
         title: createUserMeta.title,
         breadcrumb: createUserMeta.breadcrumb,
+        active: createUserMeta.active ?? true,
         content: <CreateUserContent />,
       },
       'Modify User': {
         title: modifyUserMeta.title,
         breadcrumb: modifyUserMeta.breadcrumb,
+        active: modifyUserMeta.active ?? true,
         content: <ModifyUserContent />,
       },
     }),
@@ -174,14 +180,16 @@ export default function App() {
         <main className="mx-auto flex-1 w-full max-w-7xl px-4 py-6 md:px-8">
           <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
             <div>
-              <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-slate-400">
-                {currentView.breadcrumb.map((item, index) => (
-                  <React.Fragment key={`${item}-${index}`}>
-                    {index > 0 ? <span>/</span> : null}
-                    <span className={index === currentView.breadcrumb.length - 1 ? 'font-semibold text-indigo-600' : ''}>{item}</span>
-                  </React.Fragment>
-                ))}
-              </div>
+              {currentView.active !== false && currentView.breadcrumb.length > 0 ? (
+                <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-slate-400">
+                  {currentView.breadcrumb.map((item, index) => (
+                    <React.Fragment key={`${item}-${index}`}>
+                      {index > 0 ? <span>/</span> : null}
+                      <span className={index === currentView.breadcrumb.length - 1 ? 'font-semibold text-indigo-600' : ''}>{item}</span>
+                    </React.Fragment>
+                  ))}
+                </div>
+              ) : null}
               <h1 className="mt-2 text-2xl font-bold text-slate-900">{currentView.title}</h1>
             </div>
           </div>
