@@ -1,7 +1,6 @@
 'use client';
 
-import React, { useRef } from 'react';
-import NotificationStack from '../../../components/NotificationStack';
+import React from 'react';
 
 export const pageMeta = {
   title: 'Settings Dashboard',
@@ -9,24 +8,13 @@ export const pageMeta = {
   active: false,
 };
 
-export default function SettingsSection() {
-  const notificationRef = useRef(null);
-  const countRef = useRef(0);
-
-  const pushNotification = () => {
-    countRef.current += 1;
-    notificationRef.current?.push({
-      title: 'New notification',
-      message: `This is notification #${countRef.current}`,
-    });
-  };
-
+export default function SettingsSection({ onTestNotification }) {
   return (
     <div className="space-y-4">
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex items-center justify-between gap-4">
           <button
-            onClick={pushNotification}
+            onClick={onTestNotification}
             className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
           >
             Test Notification
@@ -37,8 +25,6 @@ export default function SettingsSection() {
           </div>
         </div>
       </div>
-
-      <NotificationStack ref={notificationRef} />
     </div>
   );
 }

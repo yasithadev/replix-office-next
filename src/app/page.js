@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import dynamic from 'next/dynamic';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import SideBar from '../components/SideBar';
 import TopNav from '../components/TopNav';
 import { pageMeta as dashboardMeta } from './components/sections/DashboardSection';
@@ -10,6 +10,7 @@ import { pageMeta as projectsMeta } from './components/sections/ProjectsSection'
 import { pageMeta as settingsMeta } from './components/sections/SettingsSection';
 import CreateUserContent, { pageMeta as createUserMeta } from './user-management/components/CreateUserContent';
 import ModifyUserContent, { pageMeta as modifyUserMeta } from './user-management/components/ModifyUserContent';
+import NotificationStack from '../components/NotificationStack';
 
 const DashboardSection = dynamic(() => import('./components/sections/DashboardSection').then((mod) => mod.default), {
   ssr: false,
@@ -36,6 +37,8 @@ export default function App() {
   const [activeItem, setActiveItem] = useState('Home');
   const [profileOpen, setProfileOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const notificationRef = useRef(null);
+  const countRef = useRef(0); // was missing — needed for pushNotification below
 
   useEffect(() => {
     const handleResize = () => {
@@ -114,6 +117,15 @@ export default function App() {
     []
   );
 
+  // Single source of truth for pushing a notification — lives at the top level
+  const pushNotification = () => {
+    countRef.current += 1;
+    notificationRef.current?.push({
+      title: 'New notification',
+      message: `This is notification #${countRef.current}`,
+    });
+  };
+
   const contentMap = useMemo(
     () => ({
       Home: {
@@ -138,7 +150,7 @@ export default function App() {
         title: settingsMeta.title,
         breadcrumb: settingsMeta.breadcrumb,
         active: settingsMeta.active ?? true,
-        content: <SettingsSection />,
+        content: <SettingsSection onTestNotification={pushNotification} />, // pass callback down
       },
       'Create User': {
         title: createUserMeta.title,
@@ -153,7 +165,8 @@ export default function App() {
         content: <ModifyUserContent />,
       },
     }),
-    []
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [activeItem]
   );
 
   const currentView = contentMap[activeItem] || contentMap.Home;
@@ -197,6 +210,7 @@ export default function App() {
           <div className="min-h-[300px]">{currentView.content}</div>
         </main>
       </div>
+      <NotificationStack ref={notificationRef} />
     </div>
   );
 }
