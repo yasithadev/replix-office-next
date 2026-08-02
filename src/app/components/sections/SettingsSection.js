@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useRef } from 'react';
 import NotificationStack from '../../../components/NotificationStack';
 
 export const pageMeta = {
@@ -10,21 +10,15 @@ export const pageMeta = {
 };
 
 export default function SettingsSection() {
-  const [notifications, setNotifications] = useState([]);
+  const notificationRef = useRef(null);
+  const countRef = useRef(0);
 
   const pushNotification = () => {
-    const id = Date.now().toString();
-    const nextMessage = {
-      id,
+    countRef.current += 1;
+    notificationRef.current?.push({
       title: 'New notification',
-      message: `This is notification #${notifications.length + 1}`,
-    };
-
-    setNotifications((current) => [nextMessage, ...current]);
-  };
-
-  const dismissNotification = (id) => {
-    setNotifications((current) => current.filter((item) => item.id !== id));
+      message: `This is notification #${countRef.current}`,
+    });
   };
 
   return (
@@ -44,7 +38,7 @@ export default function SettingsSection() {
         </div>
       </div>
 
-      <NotificationStack notifications={notifications} onDismiss={dismissNotification} />
+      <NotificationStack ref={notificationRef} />
     </div>
   );
 }

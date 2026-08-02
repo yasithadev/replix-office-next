@@ -1,40 +1,38 @@
 "use client";
 
-import React, { useEffect, useRef } from 'react';
+import React, { forwardRef, useImperativeHandle, useRef, useState } from 'react';
 
-export default function NotificationStack({ notifications, onDismiss }) {
-  const scheduledIds = useRef(new Set());
+const NotificationStack = forwardRef(function NotificationStack(_props, ref) {
+  const [notifications, setNotifications] = useState([]);
   const timers = useRef(new Map());
 
-  useEffect(() => {
-    const currentIds = new Set(notifications.map((n) => n.id));
+  const dismiss = (id) => {
+    setNotifications((current) => current.filter((item) => item.id !== id));
+    const timeoutId = timers.current.get(id);
+    if (timeoutId) {
+      window.clearTimeout(timeoutId);
+      timers.current.delete(id);
+    }
+  };
 
-    // Schedule a timer for any notification that doesn't have one yet
-    notifications.forEach((item) => {
-      if (!scheduledIds.current.has(item.id)) {
-        scheduledIds.current.add(item.id);
-        const timeoutId = window.setTimeout(() => {
-          onDismiss(item.id);
-          scheduledIds.current.delete(item.id);
-          timers.current.delete(item.id);
-        }, 3000);
-        timers.current.set(item.id, timeoutId);
-      }
-    });
+  const push = (notification) => {
+    const id = notification.id ?? Date.now().toString();
+    const item = { id, ...notification };
 
-    // Clean up timers for notifications that were dismissed early (e.g. manual close)
-    scheduledIds.current.forEach((id) => {
-      if (!currentIds.has(id)) {
-        const timeoutId = timers.current.get(id);
-        if (timeoutId) window.clearTimeout(timeoutId);
-        scheduledIds.current.delete(id);
-        timers.current.delete(id);
-      }
-    });
-  }, [notifications, onDismiss]);
+    setNotifications((current) => [item, ...current]);
+
+    const timeoutId = window.setTimeout(() => {
+      dismiss(id);
+    }, 3000);
+    timers.current.set(id, timeoutId);
+  };
+
+  useImperativeHandle(ref, () => ({
+    push,
+  }));
 
   // Clear all timers on unmount
-  useEffect(() => {
+  React.useEffect(() => {
     return () => {
       timers.current.forEach((timeoutId) => window.clearTimeout(timeoutId));
     };
@@ -54,7 +52,7 @@ export default function NotificationStack({ notifications, onDismiss }) {
               <div className="mt-1 text-sm text-slate-600">{item.message}</div>
             </div>
             <button
-              onClick={() => onDismiss(item.id)}
+              onClick={() => dismiss(item.id)}
               className="text-sm font-medium text-slate-400 transition hover:text-slate-700"
             >
               ✕
@@ -64,4 +62,6 @@ export default function NotificationStack({ notifications, onDismiss }) {
       ))}
     </div>
   );
-}
+});
+
+export default NotificationStack;
