@@ -1,447 +1,303 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { 
+  Eye, 
+  EyeOff, 
+  Lock, 
+  Mail, 
+  ArrowRight, 
+  CheckCircle2, 
+  RefreshCw,
+  ChevronLeft,
+  Building2,
+  Cpu
+} from 'lucide-react';
+import Authentication from './Authentication';
+import { signIn } from './LoginAPI';
+// Single Static Background Image for Left Panel
+const LEFT_PANEL_BG = "/download.jpg";
 
-// Custom SVGs to avoid external dependencies while maintaining visual excellence
-const Icons = {
-  Google: (props) => (
-    <svg viewBox="0 0 24 24" className="h-5 w-5 mr-2 inline" {...props}>
-      <path
-        fill="#EA4335"
-        d="M12 5.04c1.66 0 3.2.57 4.38 1.69l3.27-3.27C17.67 1.47 15.02.8 12 .8 7.42.8 3.51 3.42 1.64 7.27l3.9 3.03C6.46 7.42 9 5.04 12 5.04z"
-      />
-      <path
-        fill="#4285F4"
-        d="M23.49 12.27c0-.81-.07-1.6-.2-2.36H12v4.51h6.43c-.28 1.44-1.1 2.66-2.33 3.48l3.62 2.81c2.12-1.95 3.77-4.83 3.77-8.44z"
-      />
-      <path
-        fill="#FBBC05"
-        d="M5.54 14.7c-.24-.72-.38-1.5-.38-2.3s.14-1.58.38-2.3L1.64 7.07C.6 9.17 0 11.51 0 14s.6 4.83 1.64 6.93l3.9-3.23z"
-      />
-      <path
-        fill="#34A853"
-        d="M12 23.2c3.24 0 5.97-1.07 7.96-2.91l-3.62-2.81c-1.01.68-2.3 1.09-4.34 1.09-3 0-5.54-2.38-6.46-5.26l-3.9 3.03C3.51 20.58 7.42 23.2 12 23.2z"
-      />
-    </svg>
-  ),
-  Github: (props) => (
-    <svg fill="currentColor" viewBox="0 0 24 24" className="h-5 w-5 mr-2 inline" {...props}>
-      <path
-        fillRule="evenodd"
-        clipRule="evenodd"
-        d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"
-      />
-    </svg>
-  ),
-  Eye: (props) => (
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-5 w-5" {...props}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.644M12 5.625c4.478 0 8.268 2.943 9.542 7M12 18.375c-4.478 0-8.268-2.943-9.542-7m14.225 0a4.5 4.5 0 11-9.043 0 4.5 4.5 0 019.043 0z" />
-    </svg>
-  ),
-  EyeOff: (props) => (
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-5 w-5" {...props}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
-    </svg>
-  ),
-  CheckCircle: (props) => (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-5 w-5 mr-1.5" {...props}>
-      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clipRule="evenodd" />
-    </svg>
-  )
-};
 
-const SLIDE_INTERVAL = 5000;
-const brandingSlides = [
-  {
-    title: "Streamline your development pipeline.",
-    description: "Connect your version control systems, setup secure environments, and deploy cloud-scale apps effortlessly.",
-    author: "Elena Rostova",
-    role: "Lead DevOps, TechVanguard"
-  },
-  {
-    title: "Secure by default, fast by choice.",
-    description: "Designed with industry-standard compliance. Built on highly optimized client modules and server pipelines.",
-    author: "Marcus Aureli",
-    role: "SecOps Director, CloudPinnacle"
-  },
-  {
-    title: "Collaborative layouts and features.",
-    description: "Engage with your development team in absolute real-time inside structured workspaces designed for execution.",
-    author: "Sarah Connor",
-    role: "Engineering Director, NextLayout"
-  }
-];
 
-export default function SplitLoginPage() {
-  const [isLogin, setIsLogin] = useState(true);
+
+export default function App() {
+  const router = useRouter();
+
+  // Navigation mode: 'login' | 'forgot'
+  const [mode, setMode] = useState('login');
+  
+  // Form input states
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [currentSlide, setCurrentSlide] = useState(0);
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    password: '',
-    agreeTerms: false
-  });
-  const [errors, setErrors] = useState({});
+  const [rememberMe, setRememberMe] = useState(true);
+  
+  // Interactive UI states
   const [isLoading, setIsLoading] = useState(false);
-  const [successMessage, setSuccessMessage] = useState('');
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % brandingSlides.length);
-    }, SLIDE_INTERVAL);
-    return () => clearInterval(timer);
-  }, []);
+  const currentYear = new Date().getFullYear();
 
-  const handleInputChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }));
-    // Clear validation error when user begins typing again
-    if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: '' }));
-    }
-  };
-
-  const validateForm = () => {
-    let tempErrors = {};
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-    if (!isLogin && !formData.name.trim()) {
-      tempErrors.name = "Name is required";
-    }
-    if (!formData.email) {
-      tempErrors.email = "Email is required";
-    } else if (!emailRegex.test(formData.email)) {
-      tempErrors.email = "Invalid email format";
-    }
-    if (!formData.password) {
-      tempErrors.password = "Password is required";
-    } else if (formData.password.length < 6) {
-      tempErrors.password = "Password must be at least 6 characters";
-    }
-    if (!isLogin && !formData.agreeTerms) {
-      tempErrors.agreeTerms = "You must agree to the Terms & Conditions";
-    }
-
-    setErrors(tempErrors);
-    return Object.keys(tempErrors).length === 0;
-  };
-
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!validateForm()) return;
+    setErrorMessage('');
+
+    if (!email || (mode === 'login' && !password)) {
+      setErrorMessage('Please fill in all required fields.');
+      return;
+    }
+
+    if (mode !== 'login') {
+      // TODO: wire this branch to your password-reset endpoint separately
+      return;
+    }
 
     setIsLoading(true);
-    setSuccessMessage('');
 
-    // Simulating API call latency
-    setTimeout(() => {
+    try {
+      const data = await signIn(email, password);
+
+      // Populate the singleton so any component/page can call
+      // Authentication.getInstance().hasPermission(...) afterwards
+      Authentication.getInstance(data.token, data.permissions ?? []);
+
       setIsLoading(false);
-      setSuccessMessage(
-        isLogin 
-          ? "Logged in successfully! Redirecting..." 
-          : "Account created successfully! Welcome aboard."
-      );
-      // Reset sensitive states
-      setFormData({ name: '', email: '', password: '', agreeTerms: false });
-    }, 1800);
+      setIsSuccess(true);
+
+      setTimeout(() => {
+        setIsSuccess(false);
+        router.push('/'); // adjust to your actual post-login route
+      }, 1200);
+    } catch (err) {
+      setIsLoading(false);
+
+      if (err.message === 'INVALID_CREDENTIALS') {
+        setErrorMessage('Invalid email or password.');
+      } else {
+        setErrorMessage('Something went wrong. Please try again.');
+      }
+    }
+  };
+
+  const handleModeChange = (newMode) => {
+    setMode(newMode);
+    setErrorMessage('');
+    setIsSuccess(false);
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col lg:flex-row font-sans selection:bg-indigo-500 selection:text-white">
+    <div className="min-h-screen w-full bg-slate-50 flex flex-col items-center justify-center p-4 sm:p-6 md:p-10 font-sans selection:bg-indigo-500 selection:text-white">
       
-      {/* LEFT PANEL: Branding & Dynamic Testimonials Section */}
-      {/* Hidden on small viewports, fully customized immersive viewport on 1024px+ screens */}
-      <div className="relative hidden lg:flex lg:w-1/2 bg-slate-950 text-white overflow-hidden select-none">
-        {/* Animated fluid abstract canvas gradient */}
-        <div className="absolute inset-0 z-0 bg-gradient-to-br from-indigo-950 via-slate-950 to-emerald-950 opacity-90" />
-        <div className="absolute -top-[20%] -left-[10%] w-[60%] h-[60%] rounded-full bg-indigo-500/10 blur-[120px] pointer-events-none" />
-        <div className="absolute -bottom-[20%] -right-[10%] w-[65%] h-[65%] rounded-full bg-emerald-500/10 blur-[120px] pointer-events-none" />
-
-        {/* Decorative Grid Pattern Overlay */}
-        <div className="absolute inset-0 z-0 opacity-[0.03] bg-[linear-gradient(to_right,#808080_1px,transparent_1px),linear-gradient(to_bottom,#808080_1px,transparent_1px)] bg-[size:24px_24px]" />
-
-        <div className="relative z-10 flex flex-col justify-between w-full p-12 xl:p-16">
-          {/* Brand Identity Header */}
-          <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-indigo-500 to-indigo-600 font-bold text-white shadow-lg shadow-indigo-500/20">
-              N
-            </span>
-            <span className="text-xl font-bold tracking-tight bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">
-              NextLayout
-            </span>
-          </div>
-
-          {/* Interactive Testimonial Slider */}
-          <div className="my-auto max-w-lg">
-            <div className="relative h-52 flex flex-col justify-end">
-              {brandingSlides.map((slide, index) => (
-                <div
-                  key={index}
-                  className={`absolute top-0 left-0 w-full transition-all duration-700 ease-in-out transform ${
-                    index === currentSlide
-                      ? 'opacity-100 translate-y-0 scale-100 pointer-events-auto'
-                      : 'opacity-0 translate-y-4 scale-95 pointer-events-none'
-                  }`}
-                >
-                  <h2 className="text-3xl xl:text-4xl font-extrabold tracking-tight leading-tight mb-4 text-white">
-                    {slide.title}
-                  </h2>
-                  <p className="text-slate-400 text-base leading-relaxed mb-6">
-                    {slide.description}
-                  </p>
-                  
-                  {/* Testimonial Quote Author Signature */}
-                  <div className="flex items-center gap-3 border-t border-slate-800/60 pt-4">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-tr from-indigo-600 to-slate-800 text-xs font-semibold text-white">
-                      {slide.author.split(' ').map(n => n[0]).join('')}
-                    </div>
-                    <div>
-                      <div className="font-semibold text-sm text-slate-200">{slide.author}</div>
-                      <div className="text-xs text-slate-500">{slide.role}</div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Slide Navigation Pagination Bullets */}
-            <div className="flex gap-2 mt-8">
-              {brandingSlides.map((_, index) => (
-                <button
-                  key={index}
-                  onClick={() => setCurrentSlide(index)}
-                  className={`h-1.5 rounded-full transition-all duration-300 ${
-                    index === currentSlide ? 'w-8 bg-indigo-500' : 'w-2 bg-slate-700 hover:bg-slate-600'
-                  }`}
-                  aria-label={`Go to slide ${index + 1}`}
-                />
-              ))}
-            </div>
-          </div>
-
-          {/* Bottom Footer legal text */}
-          <div className="flex items-center justify-between text-xs text-slate-500">
-            <span>© 2026 NextLayout Corp.</span>
-            <div className="flex gap-4">
-              <span className="hover:text-slate-300 cursor-pointer transition-colors">Privacy Policy</span>
-              <span className="hover:text-slate-300 cursor-pointer transition-colors">Terms of Service</span>
-            </div>
-          </div>
-        </div>
+      {/* Background Subtle Gradient Blobs */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -left-40 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl"></div>
+        <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl"></div>
       </div>
 
-      {/* RIGHT PANEL: Dynamic Authentication Form Panel */}
-      {/* High performance, accessibility-compliant form layout */}
-      <div className="flex-1 flex flex-col justify-center items-center px-6 py-12 md:px-12 lg:px-16 xl:px-24 bg-white">
+      {/* Main Framed Container (Two-sided Card) */}
+      <div className="relative w-full max-w-5xl bg-white border border-slate-200 shadow-2xl shadow-slate-200/60 rounded-3xl overflow-hidden grid grid-cols-1 md:grid-cols-12 min-h-[600px]">
         
-        {/* Brand identity displayed on mobile layouts instead */}
-        <div className="lg:hidden flex items-center gap-2 mb-10 self-start">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600 font-bold text-white shadow">
-            N
-          </span>
-          <span className="text-lg font-bold tracking-tight text-slate-900">NextLayout</span>
+        {/* ================================================================= */}
+        {/* LEFT SIDE: Static Image Panel with Logo, System Name & Footer    */}
+        {/* ================================================================= */}
+        <div className="relative md:col-span-5 hidden md:flex flex-col justify-between p-8 sm:p-10 overflow-hidden group border-r border-slate-100">
+          
+          {/* Static Background Image */}
+          <div
+            className="absolute inset-0 bg-cover bg-center transition-transform duration-700 ease-out group-hover:scale-105"
+            style={{ backgroundImage: `url(${LEFT_PANEL_BG})` }}
+          />
+
+          {/* Gradient Overlay for Readability */}
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/60 to-slate-900/30" />
+
+          {/* Center-Focused Prominent Brand Header: Company Logo, Name & System Name */}
+          <div className="relative z-10 my-auto space-y-6">
+            {/* Larger Company Logo Badge */}
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-indigo-600 to-violet-600 flex items-center justify-center shadow-xl shadow-indigo-600/30 ring-1 ring-white/20">
+              <Building2 className="w-9 h-9 text-white" />
+            </div>
+
+            <div className="space-y-2">
+              {/* Larger Company Name */}
+              <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white leading-none">
+                Acme Global <span className="text-indigo-400">Inc.</span>
+              </h1>
+              
+              {/* Larger System Name */}
+              <div className="flex items-center gap-2 text-sm sm:text-base text-indigo-200 font-medium tracking-wide">
+                <Cpu className="w-4.5 h-4.5 text-indigo-300 shrink-0" />
+                <span>Enterprise Management System</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Bottom Left Footer: Copyright, All Rights Reserved & Powered By */}
+          <div className="relative z-10 pt-4 border-t border-white/15 space-y-1 text-xs text-slate-300">
+            <p className="font-medium text-white">
+              © {currentYear} Acme Global Inc. All rights reserved.
+            </p>
+            <p className="flex items-center gap-1 text-[11px] text-slate-300">
+              <span>Powered by</span>
+              <span className="font-semibold text-indigo-300">Vanguard Security Engine</span>
+            </p>
+          </div>
         </div>
 
-        <div className="w-full max-w-md">
-          {/* Header switch elements */}
-          <div className="mb-8">
-            <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
-              {isLogin ? "Welcome back" : "Create your account"}
-            </h1>
-            <p className="text-sm text-slate-500 mt-2">
-              {isLogin ? "New to NextLayout? " : "Already have an account? "}
+        {/* ================================================================= */}
+        {/* RIGHT SIDE: Interactive Login / Password Reset Form               */}
+        {/* ================================================================= */}
+        <div className="md:col-span-7 p-6 sm:p-10 md:p-12 flex flex-col justify-between bg-white">
+          
+          {/* Mobile Top Brand (visible on small screens) */}
+          <div className="flex md:hidden flex-col gap-2 mb-6 pb-4 border-b border-slate-100">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center shadow-md">
+                <Building2 className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <span className="text-lg font-extrabold text-slate-900 block leading-tight">Acme Global</span>
+                <span className="text-xs text-indigo-600 font-medium flex items-center gap-1">
+                  <Cpu className="w-3.5 h-3.5 text-indigo-600" />
+                  Enterprise Management System
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Form Header */}
+          <div className="space-y-1.5 pt-2">
+            {mode === 'forgot' && (
               <button
-                type="button"
-                onClick={() => {
-                  setIsLogin(!isLogin);
-                  setErrors({});
-                  setSuccessMessage('');
-                }}
-                className="font-semibold text-indigo-600 hover:text-indigo-500 focus:outline-none focus:underline transition-colors"
+                onClick={() => handleModeChange('login')}
+                className="inline-flex items-center text-xs text-slate-500 hover:text-slate-900 transition-colors mb-2 gap-1 font-medium"
               >
-                {isLogin ? "Sign up for free" : "Sign in to account"}
+                <ChevronLeft className="w-4 h-4" /> Back to Sign In
               </button>
+            )}
+
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+              {mode === 'login' ? 'Sign In to Portal' : 'Reset Password'}
+            </h2>
+            <p className="text-sm text-slate-500">
+              {mode === 'login' 
+                ? 'Enter your authorization credentials to continue.' 
+                : 'Provide your official email to recover account access.'}
             </p>
           </div>
 
-          {/* Success Banner Alert feedback panel */}
-          {successMessage && (
-            <div className="mb-6 p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm font-medium flex items-center animate-fade-in">
-              <Icons.CheckCircle className="flex-shrink-0" />
-              <span>{successMessage}</span>
+          {/* Feedback Banners */}
+          {errorMessage && (
+            <div className="my-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping" />
+              {errorMessage}
             </div>
           )}
 
-          {/* Social Logins Action Triggers */}
-          <div className="grid grid-cols-2 gap-3 mb-6">
-            <button
-              type="button"
-              className="flex items-center justify-center py-2.5 px-4 border border-slate-200 rounded-xl text-sm font-medium text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-100 transition-all duration-200"
-            >
-              <Icons.Google />
-              Google
-            </button>
-            <button
-              type="button"
-              className="flex items-center justify-center py-2.5 px-4 border border-slate-200 rounded-xl text-sm font-medium text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-100 transition-all duration-200"
-            >
-              <Icons.Github />
-              GitHub
-            </button>
-          </div>
-
-          {/* Form Divider Graphic Separator */}
-          <div className="relative mb-6">
-            <div className="absolute inset-0 flex items-center" aria-hidden="true">
-              <div className="w-full border-t border-slate-200"></div>
+          {isSuccess && (
+            <div className="my-4 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+              {mode === 'login' 
+                ? 'Authenticated! Redirecting to System Dashboard...' 
+                : 'Password recovery instructions sent.'}
             </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-white px-3 text-slate-400 font-semibold tracking-wider">Or continue with</span>
-            </div>
-          </div>
+          )}
 
-          {/* Primary Form Elements */}
-          <form onSubmit={handleSubmit} className="space-y-5">
-            
-            {/* Dynamic Name Input - Sign Up Page Only */}
-            {!isLogin && (
-              <div>
-                <label htmlFor="name" className="block text-sm font-semibold text-slate-700 mb-1.5">
-                  Full Name
-                </label>
+          {/* Main Form */}
+          <form onSubmit={handleSubmit} className="space-y-4 my-auto py-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-700">Corporate Email</label>
+              <div className="relative">
+                <Mail className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
-                  id="name"
-                  name="name"
-                  type="text"
-                  placeholder="Jane Doe"
-                  value={formData.name}
-                  onChange={handleInputChange}
-                  className={`w-full px-4 py-2.5 rounded-xl border text-sm transition-all duration-200 outline-none ${
-                    errors.name 
-                      ? 'border-red-500 focus:ring-2 focus:ring-red-100' 
-                      : 'border-slate-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10'
-                  }`}
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="alex@acmeglobal.com"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 pl-10 pr-4 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20 transition-all"
                 />
-                {errors.name && <p className="mt-1 text-xs font-medium text-red-500">{errors.name}</p>}
               </div>
-            )}
-
-            {/* Email Address Input */}
-            <div>
-              <label htmlFor="email" className="block text-sm font-semibold text-slate-700 mb-1.5">
-                Email Address
-              </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                placeholder="you@example.com"
-                value={formData.email}
-                onChange={handleInputChange}
-                className={`w-full px-4 py-2.5 rounded-xl border text-sm transition-all duration-200 outline-none ${
-                  errors.email 
-                    ? 'border-red-500 focus:ring-2 focus:ring-red-100' 
-                    : 'border-slate-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10'
-                }`}
-              />
-              {errors.email && <p className="mt-1 text-xs font-medium text-red-500">{errors.email}</p>}
             </div>
 
-            {/* Password Input Block with dynamic Visibility Toggle */}
-            <div>
-              <div className="flex justify-between items-center mb-1.5">
-                <label htmlFor="password" className="block text-sm font-semibold text-slate-700">
-                  Password
-                </label>
-                {isLogin && (
+            {mode === 'login' && (
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-slate-700">Password</label>
                   <button
                     type="button"
-                    className="text-xs font-semibold text-indigo-600 hover:text-indigo-500 focus:outline-none hover:underline"
+                    onClick={() => handleModeChange('forgot')}
+                    className="text-xs font-medium text-indigo-600 hover:text-indigo-700 transition-colors"
                   >
                     Forgot password?
                   </button>
-                )}
-              </div>
-              <div className="relative">
-                <input
-                  id="password"
-                  name="password"
-                  type={showPassword ? "text" : "password"}
-                  placeholder="••••••••"
-                  value={formData.password}
-                  onChange={handleInputChange}
-                  className={`w-full pl-4 pr-11 py-2.5 rounded-xl border text-sm transition-all duration-200 outline-none ${
-                    errors.password 
-                      ? 'border-red-500 focus:ring-2 focus:ring-red-100' 
-                      : 'border-slate-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10'
-                  }`}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 focus:outline-none"
-                >
-                  {showPassword ? <Icons.EyeOff /> : <Icons.Eye />}
-                </button>
-              </div>
-              {errors.password && <p className="mt-1 text-xs font-medium text-red-500">{errors.password}</p>}
-            </div>
-
-            {/* Dynamic agreement layout checkboxes depends on action context */}
-            {isLogin ? (
-              <div className="flex items-center justify-between">
-                <label className="relative flex items-center gap-2 cursor-pointer select-none">
+                </div>
+                <div className="relative">
+                  <Lock className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                   <input
-                    type="checkbox"
-                    className="h-4 w-4 rounded-md border-slate-300 text-indigo-600 focus:ring-indigo-500 transition-all duration-200 cursor-pointer"
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••••••"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 pl-10 pr-10 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20 transition-all"
                   />
-                  <span className="text-sm text-slate-600">Keep me logged in</span>
-                </label>
-              </div>
-            ) : (
-              <div>
-                <label className="relative flex items-start gap-2.5 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    name="agreeTerms"
-                    checked={formData.agreeTerms}
-                    onChange={handleInputChange}
-                    className="h-4 w-4 mt-0.5 rounded-md border-slate-300 text-indigo-600 focus:ring-indigo-500 transition-all duration-200 cursor-pointer"
-                  />
-                  <span className="text-xs text-slate-500 leading-normal">
-                    I agree to NextLayout's{" "}
-                    <button type="button" className="text-indigo-600 font-semibold hover:underline">Terms of Service</button>
-                    {" "}and{" "}
-                    <button type="button" className="text-indigo-600 font-semibold hover:underline">Privacy Policy</button>.
-                  </span>
-                </label>
-                {errors.agreeTerms && <p className="mt-1 text-xs font-medium text-red-500">{errors.agreeTerms}</p>}
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
               </div>
             )}
 
-            {/* Submit Action Button trigger */}
+            {mode === 'login' && (
+              <div className="flex items-center space-x-2 pt-1">
+                <input
+                  type="checkbox"
+                  id="remember"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="w-4 h-4 rounded bg-slate-100 border-slate-300 text-indigo-600 focus:ring-indigo-500 focus:ring-offset-white cursor-pointer"
+                />
+                <label htmlFor="remember" className="text-xs text-slate-600 cursor-pointer select-none">
+                  Keep session active on this device
+                </label>
+              </div>
+            )}
+
             <button
               type="submit"
               disabled={isLoading}
-              className="relative w-full py-3 px-4 rounded-xl font-bold text-sm text-white bg-gradient-to-tr from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 shadow-md shadow-indigo-500/10 active:scale-[0.98] transition-all duration-150 disabled:opacity-50 disabled:pointer-events-none"
+              className="w-full mt-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 px-4 rounded-xl shadow-lg shadow-indigo-600/20 transition-all duration-200 flex items-center justify-center gap-2 group disabled:opacity-70 disabled:cursor-not-allowed"
             >
               {isLoading ? (
-                <div className="flex items-center justify-center">
-                  <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </svg>
-                  <span className="ml-2">Connecting...</span>
-                </div>
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  <span>Verifying Credentials...</span>
+                </>
               ) : (
-                <span>{isLogin ? "Sign In" : "Get Started Now"}</span>
+                <>
+                  <span>
+                    {mode === 'login' ? 'Authenticate' : 'Send Recovery Email'}
+                  </span>
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+                </>
               )}
             </button>
           </form>
+
+          {/* Right Mobile Footer (shows on small screens) */}
+          <div className="mt-6 pt-4 border-t border-slate-100 md:hidden text-center space-y-1 text-[11px] text-slate-400">
+            <p>© {currentYear} Acme Global Inc. All rights reserved.</p>
+            <p>Powered by Vanguard Security Engine</p>
+          </div>
+
         </div>
       </div>
     </div>
