@@ -1,4 +1,4 @@
-export async function signIn(email, password) {
+export async function makeLoginAPICall(email, password) {
   const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/test/signin`, {
     method: 'POST',
     headers: {

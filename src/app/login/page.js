@@ -14,13 +14,10 @@ import {
   Building2,
   Cpu
 } from 'lucide-react';
-import Authentication from './Authentication';
-import { signIn } from './LoginAPI';
+import { loginService } from './LoginService';
+
 // Single Static Background Image for Left Panel
 const LEFT_PANEL_BG = "/download.jpg";
-
-
-
 
 export default function App() {
   const router = useRouter();
@@ -58,11 +55,7 @@ export default function App() {
     setIsLoading(true);
 
     try {
-      const data = await signIn(email, password);
-
-      // Populate the singleton so any component/page can call
-      // Authentication.getInstance().hasPermission(...) afterwards
-      Authentication.getInstance(data.token, data.permissions ?? []);
+      const data = await loginService(email, password);
 
       setIsLoading(false);
       setIsSuccess(true);
