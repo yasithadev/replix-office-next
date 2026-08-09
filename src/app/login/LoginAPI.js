@@ -1,9 +1,5 @@
-
-// Base URL of your Spring Boot backend — move this to an env var (NEXT_PUBLIC_API_BASE_URL) in real usage
-const API_BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
-
 export async function signIn(email, password) {
-  const response = await fetch(`${API_BASE_URL}/api/test/signin`, {
+  const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/test/signin`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
