@@ -26,7 +26,7 @@ export default function TopNav({ onToggleSidebar, profileOpen, onToggleProfile, 
       <div className="flex items-center gap-3">
         <button
           onClick={onToggleSidebar}
-          className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 md:hidden"
+          className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500"
           aria-label="Toggle Sidebar"
         >
           <Icons.Menu className="h-6 w-6" />

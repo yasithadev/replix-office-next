@@ -41,8 +41,18 @@ export default function App() {
   const countRef = useRef(0); // was missing — needed for pushNotification below
 
   useEffect(() => {
+    // Sidebar defaults to open on desktop, closed (off-canvas) on mobile.
+    if (window.innerWidth >= 768) {
+      setSidebarOpen(true);
+    }
+  }, []);
+
+  useEffect(() => {
     const handleResize = () => {
-      if (window.innerWidth >= 768) {
+      // Only auto-close when shrinking into mobile, so the mobile overlay
+      // doesn't pop open unexpectedly. Desktop open/closed is left to the
+      // user's own toggling once set.
+      if (window.innerWidth < 768) {
         setSidebarOpen(false);
       }
     };
@@ -201,7 +211,7 @@ export default function App() {
           onSelectItem={(itemName) => setActiveItem(itemName)}
         />
 
-        <main className="mx-auto flex-1 w-full max-w-7xl px-4 py-6 md:px-8">
+        <main className={`flex-1 w-full px-4 py-6 md:px-8 transition-all duration-300 ease-in-out ${sidebarOpen ? 'mx-auto max-w-7xl' : 'max-w-none'}`}>
           <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
             <div>
               {currentView.active !== false && currentView.breadcrumb.length > 0 ? (

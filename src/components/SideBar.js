@@ -133,7 +133,9 @@ export default function SideBar({ open, onClose, menuItems, activeItem, onSelect
             }
 
             onSelectItem(item.name);
-            onClose();
+            if (window.innerWidth < 768) {
+              onClose();
+            }
           }}
           className={`flex w-full items-center justify-between gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200 ${itemIsActive ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}
           style={{ paddingLeft: `${depth * 0.75 + 1}rem` }}
@@ -172,20 +174,26 @@ export default function SideBar({ open, onClose, menuItems, activeItem, onSelect
         />
       )}
 
-      <aside className={`fixed bottom-0 left-0 top-0 z-50 w-64 border-r border-slate-200 bg-white p-4 transition-transform duration-300 ease-in-out md:sticky md:top-16 md:z-30 md:h-[calc(100vh-4rem)] md:translate-x-0 ${open ? 'translate-x-0' : '-translate-x-full'}`}>
-        <div className="mb-6 flex items-center justify-between md:hidden">
-          <span className="font-bold text-slate-900">Navigation</span>
-          <button
-            onClick={onClose}
-            className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-600"
-          >
-            <Icons.Close className="h-5 w-5" />
-          </button>
-        </div>
+      <aside
+        className={`fixed bottom-0 left-0 top-0 z-50 w-64 border-r border-slate-200 bg-white p-4 transition-all duration-300 ease-in-out md:sticky md:top-16 md:z-30 md:h-[calc(100vh-4rem)] md:translate-x-0 overflow-hidden ${
+          open ? 'translate-x-0 md:w-64' : '-translate-x-full md:w-0 md:border-r-0 md:p-0'
+        }`}
+      >
+        <div className="w-56 md:w-56">
+          <div className="mb-6 flex items-center justify-between md:hidden">
+            <span className="font-bold text-slate-900">Navigation</span>
+            <button
+              onClick={onClose}
+              className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-600"
+            >
+              <Icons.Close className="h-5 w-5" />
+            </button>
+          </div>
 
-        <nav className="space-y-1">
-          {visibleMenuItems.map((item) => renderItem(item))}
-        </nav>
+          <nav className="space-y-1">
+            {visibleMenuItems.map((item) => renderItem(item))}
+          </nav>
+        </div>
       </aside>
     </>
   );
