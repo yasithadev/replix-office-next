@@ -1,8 +1,14 @@
 "use client";
 
 import React, { useMemo, useState } from 'react';
+import * as LucideIcons from 'lucide-react';
 import Authentication from '../app/login/Authentication';
 
+// Built-in fallback SVGs. These are used when a menu item does NOT specify
+// an `icon` string, matched against the item's `name`. Kept for backward
+// compatibility with existing menuItems that rely on name-based matching
+// (Home / Analytics / Projects / Settings), plus the two icons SideBar uses
+// for its own chrome (Close, ChevronRight).
 const Icons = {
   Home: (props) => (
     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
@@ -38,6 +44,24 @@ const Icons = {
   ),
 };
 
+// Resolves the icon component for a menu item, in order of preference:
+//   1. item.icon as an already-imported component (e.g. `icon: UserCog`)
+//   2. item.icon as a string matching a lucide-react export name (e.g. `icon: 'UserCog'`)
+//   3. item.icon as a string matching one of the custom SVGs above
+//   4. item.name matching a custom SVG above (legacy behavior)
+// Returns null if nothing matches, so items with no configured icon simply
+// render without one instead of erroring.
+function resolveIcon(item) {
+  if (item.icon) {
+    if (typeof item.icon !== 'string') {
+      // Someone passed an actual component reference — use it directly.
+      return item.icon;
+    }
+    return LucideIcons[item.icon] || Icons[item.icon] || null;
+  }
+  return Icons[item.name] || null;
+}
+
 function isActiveItem(activeItem, item) {
   if (!item) return false;
   if (activeItem === item.name) return true;
@@ -53,9 +77,7 @@ function filterMenuItemsByPermission(items, auth) {
   return items.reduce((visible, item) => {
     // If this item declares a required permission and the user doesn't
     // have it, drop the item (and everything under it) entirely.
-    
     if (item.permission && !auth.hasPermission(item.permission)) {
-      console.log('--------------has permission-------------')
       return visible;
     }
 
@@ -98,6 +120,7 @@ export default function SideBar({ open, onClose, menuItems, activeItem, onSelect
     const hasChildren = Boolean(item.children?.length);
     const expanded = openGroups[item.name];
     const itemIsActive = isActiveItem(activeItem, item);
+    const Icon = resolveIcon(item);
 
     return (
       <div key={item.name} className="space-y-1">
@@ -116,10 +139,7 @@ export default function SideBar({ open, onClose, menuItems, activeItem, onSelect
           style={{ paddingLeft: `${depth * 0.75 + 1}rem` }}
         >
           <span className="flex items-center gap-3">
-            {(item.icon || Icons[item.name]) && (() => {
-              const Icon = item.icon ?? Icons[item.name];
-              return <Icon className={`h-5 w-5 transition-transform ${itemIsActive ? 'scale-110' : ''}`} />;
-            })()}
+            {Icon ? <Icon className={`h-5 w-5 transition-transform ${itemIsActive ? 'scale-110' : ''}`} /> : null}
             {item.name}
           </span>
 

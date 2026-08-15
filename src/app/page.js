@@ -95,29 +95,35 @@ export default function App() {
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, [hashToSection]);
 
-  // Each item can declare a `permission` — a single string like 'analytics:view'
-  // or an array like ['user:create', 'user:manage'] (matches
-  // Authentication#hasPermission, which treats an array as "at least one of").
-  // Items/groups the user lacks permission for are filtered out by SideBar.
+  // Each item can declare:
+  //  - `permission`: a single string like 'analytics:view', or an array
+  //    like ['user:create', 'user:manage'] (SideBar/Authentication treat an
+  //    array as "at least one of"). Items/groups the user lacks permission
+  //    for are filtered out by SideBar.
+  //  - `icon`: a string matching a lucide-react export name (e.g. 'Home',
+  //    'BarChart3', 'UserCog'). SideBar resolves this to the actual icon
+  //    component — see https://lucide.dev/icons for the full name list.
   const menuItems = useMemo(
     () => [
-      { name: 'Home', permission: 'dashboard:view' },
-      { name: 'Analytics', permission: 'analytics:view' },
-      { name: 'Projects', permission: 'projects:view' },
-      { name: 'Settings', permission: 'settings:view' },
+      { name: 'Home', icon: 'Home' },
+      { name: 'Analytics', icon: 'BarChart3'},
+      { name: 'Projects', icon: 'FolderKanban' },
       {
         name: 'User Management',
+        icon: 'Users',
         children: [
           {
             name: 'Operations',
+            icon: 'Settings2',
             children: [
-              { name: 'Create User' },
-              { name: 'Modify User', permission: 'READ_USER' },
-              { name: 'Manage User', permission: ['READ_USER', 'user:edit', 'user:delete'] },
+              { name: 'Create User', icon: 'UserPlus' },
+              { name: 'Modify User', icon: 'UserCog', permission: 'READ_USER' },
+              { name: 'Manage User', icon: 'ShieldCheck', permission: ['READ_USER', 'user:edit', 'user:delete'] },
             ],
           },
         ],
       },
+      { name: 'Settings', icon: 'Settings' },
     ],
     []
   );
