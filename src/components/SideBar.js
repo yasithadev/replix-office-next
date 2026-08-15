@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
+import Authentication from '../app/login/Authentication';
 
 const Icons = {
   Home: (props) => (
@@ -43,8 +44,51 @@ function isActiveItem(activeItem, item) {
   return Boolean(item.children?.some((child) => isActiveItem(activeItem, child)));
 }
 
+// Recursively drops any item the user isn't allowed to see, and drops any
+// parent group whose children all get filtered out (so an empty group
+// never renders as a dead-end button).
+function filterMenuItemsByPermission(items, auth) {
+  if (!Array.isArray(items)) return [];
+
+  return items.reduce((visible, item) => {
+    // If this item declares a required permission and the user doesn't
+    // have it, drop the item (and everything under it) entirely.
+    
+    if (item.permission && !auth.hasPermission(item.permission)) {
+      console.log('--------------has permission-------------')
+      return visible;
+    }
+
+    const hadChildren = Boolean(item.children?.length);
+
+    if (hadChildren) {
+      const filteredChildren = filterMenuItemsByPermission(item.children, auth);
+
+      // The group had children, but none of them survived the permission
+      // check -> hide the whole group, there's nothing left to show.
+      if (filteredChildren.length === 0) {
+        return visible;
+      }
+
+      visible.push({ ...item, children: filteredChildren });
+      return visible;
+    }
+
+    visible.push(item);
+    return visible;
+  }, []);
+}
+
 export default function SideBar({ open, onClose, menuItems, activeItem, onSelectItem }) {
   const [openGroups, setOpenGroups] = useState({});
+
+  const auth = Authentication.getInstance();
+
+  // Re-computed whenever the raw menu or the user's permissions change.
+  const visibleMenuItems = useMemo(
+    () => filterMenuItemsByPermission(menuItems, auth),
+    [menuItems, auth]
+  );
 
   const toggleGroup = (name) => {
     setOpenGroups((current) => ({ ...current, [name]: !current[name] }));
@@ -93,6 +137,12 @@ export default function SideBar({ open, onClose, menuItems, activeItem, onSelect
     );
   };
 
+  // Nothing the user is allowed to see -> don't render the sidebar (or its
+  // mobile overlay) at all.
+  if (visibleMenuItems.length === 0) {
+    return null;
+  }
+
   return (
     <>
       {open && (
@@ -114,7 +164,7 @@ export default function SideBar({ open, onClose, menuItems, activeItem, onSelect
         </div>
 
         <nav className="space-y-1">
-          {menuItems.map((item) => renderItem(item))}
+          {visibleMenuItems.map((item) => renderItem(item))}
         </nav>
       </aside>
     </>

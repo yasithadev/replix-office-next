@@ -95,12 +95,16 @@ export default function App() {
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, [hashToSection]);
 
+  // Each item can declare a `permission` — a single string like 'analytics:view'
+  // or an array like ['user:create', 'user:manage'] (matches
+  // Authentication#hasPermission, which treats an array as "at least one of").
+  // Items/groups the user lacks permission for are filtered out by SideBar.
   const menuItems = useMemo(
     () => [
-      { name: 'Home' },
-      { name: 'Analytics' },
-      { name: 'Projects' },
-      { name: 'Settings' },
+      { name: 'Home', permission: 'dashboard:view' },
+      { name: 'Analytics', permission: 'analytics:view' },
+      { name: 'Projects', permission: 'projects:view' },
+      { name: 'Settings', permission: 'settings:view' },
       {
         name: 'User Management',
         children: [
@@ -108,7 +112,8 @@ export default function App() {
             name: 'Operations',
             children: [
               { name: 'Create User' },
-              { name: 'Modify User' },
+              { name: 'Modify User', permission: 'READ_USER' },
+              { name: 'Manage User', permission: ['READ_USER', 'user:edit', 'user:delete'] },
             ],
           },
         ],
