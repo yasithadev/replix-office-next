@@ -1,5 +1,5 @@
 export async function makeLoginAPICall(email, password) {
-  const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/test/signin`, {
+  const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/v1/auth/signin`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
