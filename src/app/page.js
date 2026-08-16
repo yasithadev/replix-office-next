@@ -139,11 +139,10 @@ export default function App() {
   );
 
   // Single source of truth for pushing a notification — lives at the top level
-  const pushNotification = () => {
-    countRef.current += 1;
+  const pushNotification = (title,message) => {
     notificationRef.current?.push({
-      title: 'New notification',
-      message: `This is notification #${countRef.current}`,
+      title: title,
+      message: message,
     });
   };
 
@@ -177,7 +176,7 @@ export default function App() {
         title: createUserMeta.title,
         breadcrumb: createUserMeta.breadcrumb,
         active: createUserMeta.active ?? true,
-        content: <CreateUserContent />,
+        content: <CreateUserContent onNotify={pushNotification} />,
       },
       'Modify User': {
         title: modifyUserMeta.title,
