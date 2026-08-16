@@ -3,7 +3,7 @@ import EmailField from '../../../components/EmailField';
 import NameField from '../../../components//NameField';
 
 export const pageMeta = {
-  title: 'Create User',
+  title: '',
   breadcrumb: ['User Management', 'Create User'],
 };
 

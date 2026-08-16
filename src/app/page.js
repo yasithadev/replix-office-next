@@ -210,7 +210,7 @@ export default function App() {
           onSelectItem={(itemName) => setActiveItem(itemName)}
         />
 
-        <main className={`flex-1 w-full px-4 py-6 md:px-8 transition-all duration-300 ease-in-out ${sidebarOpen ? 'mx-auto max-w-7xl' : 'max-w-none'}`}>
+        <main className="flex-1 w-full px-4 py-6 md:px-8 transition-all duration-300 ease-in-out max-w-none">
           <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
             <div>
               {currentView.active !== false && currentView.breadcrumb.length > 0 ? (
