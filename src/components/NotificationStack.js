@@ -1,6 +1,7 @@
 "use client";
 
 import React, { forwardRef, useImperativeHandle, useRef, useState } from 'react';
+import NotificationCard from './NotificationCard';
 
 const NotificationStack = forwardRef(function NotificationStack(_props, ref) {
   const [notifications, setNotifications] = useState([]);
@@ -41,24 +42,14 @@ const NotificationStack = forwardRef(function NotificationStack(_props, ref) {
   return (
     <div className="fixed right-4 top-20 z-[60] flex w-[min(24rem,calc(100vw-2rem))] flex-col gap-3">
       {notifications.map((item, index) => (
-        <div
+        <NotificationCard
           key={item.id}
-          className="rounded-xl border border-slate-200 bg-white p-4 shadow-xl shadow-slate-200/80"
+          title={item.title}
+          message={item.message}
+          notificationType={item.notificationType}
           style={{ marginTop: index === 0 ? 0 : 8 }}
-        >
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <div className="text-sm font-semibold text-slate-900">{item.title}</div>
-              <div className="mt-1 text-sm text-slate-600">{item.message}</div>
-            </div>
-            <button
-              onClick={() => dismiss(item.id)}
-              className="text-sm font-medium text-slate-400 transition hover:text-slate-700"
-            >
-              ✕
-            </button>
-          </div>
-        </div>
+          onDismiss={() => dismiss(item.id)}
+        />
       ))}
     </div>
   );

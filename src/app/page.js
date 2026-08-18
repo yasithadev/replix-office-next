@@ -139,10 +139,11 @@ export default function App() {
   );
 
   // Single source of truth for pushing a notification — lives at the top level
-  const pushNotification = (title,message) => {
+  const pushNotification = (title,message,type) => {
     notificationRef.current?.push({
       title: title,
       message: message,
+      notificationType:type
     });
   };
 

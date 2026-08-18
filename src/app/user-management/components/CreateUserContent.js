@@ -71,14 +71,14 @@ export default function CreateUserContent({ onNotify }) {
           setErrors(data.errors);
         }
 
-        onNotify?.('Create user failed',message);
+        onNotify?.('Create user failed',message, "error");
         return;
       }
 
       setSuccess(true);
       setForm(initialForm);
     } catch (err) {
-      onNotify?.('Create user failed','Something went wrong. Please try again.');
+      onNotify?.('Create user failed','Something went wrong. Please try again.',"error");
     } finally {
       setSubmitting(false);
     }
