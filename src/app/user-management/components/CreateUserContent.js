@@ -21,6 +21,8 @@ export default function CreateUserContent({ onNotify }) {
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const emailFieldRef = useRef(null);
+  const firstNameRef = useRef(null);
+  const secondNameRef = useRef(null);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -42,6 +44,8 @@ export default function CreateUserContent({ onNotify }) {
 
     // Email validation (including its error message) is fully owned by
     // EmailField; we only need the valid boolean to gate submission.
+    // firstName/secondName expose validate() too, but per original
+    // behavior they aren't required and don't gate submit.
     const emailResult = emailFieldRef.current?.validate();
     const emailValid = emailResult ? emailResult.valid : true;
 
@@ -123,21 +127,21 @@ export default function CreateUserContent({ onNotify }) {
         />
 
         <NameField
+          ref={firstNameRef}
           name="firstName"
           label="First Name"
           value={form.firstName}
           onChange={handleChange}
-          error={errors.firstName}
           placeholder="John"
           required={false}
         />
 
         <NameField
+          ref={secondNameRef}
           name="secondName"
           label="Second Name"
           value={form.secondName}
           onChange={handleChange}
-          error={errors.secondName}
           placeholder="Smith"
           required={false}
         />

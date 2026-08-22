@@ -1,18 +1,38 @@
-import React from 'react';
+import React, { useState, forwardRef, useImperativeHandle } from 'react';
 
-export default function NameField({
-  value,
-  onChange,
-  error,
-  name,
-  label,
-  required = true,
-  placeholder = '',
-}) {
+const NameField = forwardRef(function NameField(
+  {
+    value,
+    onChange,
+    name,
+    label,
+    required = true,
+    placeholder = '',
+  },
+  ref
+) {
+  const [error, setError] = useState('');
+
+  const validate = () => {
+    let result = { valid: true, message: '' };
+
+    if (required && !value.trim()) {
+      result = { valid: false, message: `${label || 'This field'} is required` };
+    }
+
+    setError(result.valid ? '' : result.message);
+    return result;
+  };
+
+  useImperativeHandle(ref, () => ({
+    validate,
+  }));
+
   const handleChange = (e) => {
     // Strip anything that isn't a letter or space (blocks numbers + special chars)
     const filtered = e.target.value.replace(/[^a-zA-Z\s]/g, '');
     e.target.value = filtered;
+    if (error) setError('');
     onChange(e);
   };
 
@@ -47,4 +67,6 @@ export default function NameField({
       {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
     </div>
   );
-}
+});
+
+export default NameField;
