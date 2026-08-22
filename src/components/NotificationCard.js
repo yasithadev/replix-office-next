@@ -8,7 +8,7 @@ const VARIANT_STYLES = {
     icon: 'bg-emerald-100 text-emerald-600',
     title: 'text-emerald-900',
     message: 'text-emerald-700',
-    dismiss: 'text-emerald-400 hover:text-emerald-700',
+    dismiss: 'hover:text-emerald-700',
     symbol: '✓',
   },
   error: {
@@ -16,7 +16,7 @@ const VARIANT_STYLES = {
     icon: 'bg-red-100 text-red-600',
     title: 'text-red-900',
     message: 'text-red-700',
-    dismiss: 'text-red-400 hover:text-red-700',
+    dismiss: ' hover:text-red-700',
     symbol: '✕',
   },
 };

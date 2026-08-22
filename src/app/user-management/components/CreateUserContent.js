@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import EmailField from '../../../components/EmailField';
 import NameField from '../../../components//NameField';
 
@@ -20,6 +20,7 @@ export default function CreateUserContent({ onNotify }) {
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
+  const emailFieldRef = useRef(null);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -39,14 +40,13 @@ export default function CreateUserContent({ onNotify }) {
       next.userName = 'Username is required';
     }
 
-    if (!form.email.trim()) {
-      next.email = 'Email is required';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
-      next.email = 'Email should be valid';
-    }
+    // Email validation (including its error message) is fully owned by
+    // EmailField; we only need the valid boolean to gate submission.
+    const emailResult = emailFieldRef.current?.validate();
+    const emailValid = emailResult ? emailResult.valid : true;
 
     setErrors(next);
-    return Object.keys(next).length === 0;
+    return Object.keys(next).length === 0 && emailValid;
   };
 
   const handleSubmit = async (e) => {
@@ -71,14 +71,14 @@ export default function CreateUserContent({ onNotify }) {
           setErrors(data.errors);
         }
 
-        onNotify?.('Create user failed',message, "error");
+        onNotify?.('Create user failed', message, "error");
         return;
       }
 
       setSuccess(true);
       setForm(initialForm);
     } catch (err) {
-      onNotify?.('Create user failed','Something went wrong. Please try again.',"error");
+      onNotify?.('Create user failed', 'Something went wrong. Please try again.', "error");
     } finally {
       setSubmitting(false);
     }
@@ -116,9 +116,9 @@ export default function CreateUserContent({ onNotify }) {
         </div>
 
         <EmailField
+          ref={emailFieldRef}
           value={form.email}
           onChange={handleChange}
-          error={errors.email}
           required
         />
 
