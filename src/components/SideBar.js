@@ -137,11 +137,11 @@ export default function SideBar({ open, onClose, menuItems, activeItem, onSelect
               onClose();
             }
           }}
-          className={`flex w-full items-center justify-between gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200 ${itemIsActive ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}
+          className={`flex w-full items-center justify-between gap-3 rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 ${itemIsActive ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}
           style={{ paddingLeft: `${depth * 0.75 + 1}rem` }}
         >
           <span className="flex items-center gap-3">
-            {Icon ? <Icon className={`h-5 w-5 transition-transform ${itemIsActive ? 'scale-110' : ''}`} /> : null}
+            {Icon ? <Icon className={`h-4 w-4 transition-transform ${itemIsActive ? 'scale-110' : ''}`} /> : null}
             {item.name}
           </span>
 

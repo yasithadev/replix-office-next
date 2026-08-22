@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import EmailField from '../../../components/EmailField';
 import NameField from '../../../components//NameField';
+import Authentication from '../../login/Authentication';
 
 export const pageMeta = {
   title: '',
@@ -19,7 +20,6 @@ export default function CreateUserContent({ onNotify }) {
   const [form, setForm] = useState(initialForm);
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
-  const [success, setSuccess] = useState(false);
   const emailFieldRef = useRef(null);
   const firstNameRef = useRef(null);
   const secondNameRef = useRef(null);
@@ -55,17 +55,20 @@ export default function CreateUserContent({ onNotify }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setSuccess(false);
 
     if (!validate()) return;
 
     setSubmitting(true);
     try {
-      const res = await fetch('/api/users', {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/v1/user/create`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+            'Content-Type': 'application/json', 
+            'Authorization': `Bearer ${Authentication.getInstance().getJwt()}` 
+        },
         body: JSON.stringify(form),
       });
+
 
       if (!res.ok) {
         const data = await res.json().catch(() => null);
@@ -78,10 +81,11 @@ export default function CreateUserContent({ onNotify }) {
         onNotify?.('Create user failed', message, "error");
         return;
       }
-
-      setSuccess(true);
       setForm(initialForm);
+      onNotify?.('Successfully Created', '', "success");
+
     } catch (err) {
+        console.error(err)
       onNotify?.('Create user failed', 'Something went wrong. Please try again.', "error");
     } finally {
       setSubmitting(false);
@@ -160,17 +164,12 @@ export default function CreateUserContent({ onNotify }) {
         </div>
 
         <div className="md:col-span-2">
-          {success && (
-            <p className="mb-3 text-sm text-green-600">User created successfully.</p>
-          )}
-
           <div className="flex justify-end gap-3">
             <button
               type="button"
               onClick={() => {
                 setForm(initialForm);
                 setErrors({});
-                setSuccess(false);
               }}
               className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
             >
