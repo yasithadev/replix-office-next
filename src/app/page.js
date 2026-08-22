@@ -63,12 +63,12 @@ export default function App() {
 
   const sectionToHash = useMemo(
     () => ({
-      Home: 'dashboard/home',
-      Analytics: 'dashboard/analytics',
-      Projects: 'dashboard/projects',
-      Settings: 'dashboard/settings',
-      'Create User': 'dashboard/user-management/create-user',
-      'Modify User': 'dashboard/user-management/modify-user',
+      Home: 'home',
+      Analytics: 'analytics',
+      Projects: 'projects',
+      Settings: 'settings',
+      'Create User': 'user-management/create-user',
+      'Modify User': 'user-management/modify-user',
     }),
     []
   );
@@ -212,7 +212,7 @@ export default function App() {
         />
 
         <main className="flex-1 w-full px-4 py-6 md:px-8 transition-all duration-300 ease-in-out max-w-none">
-          <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+          <div className="mb-2 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
             <div>
               {currentView.active !== false && currentView.breadcrumb.length > 0 ? (
                 <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-slate-400">

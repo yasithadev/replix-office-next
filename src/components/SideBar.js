@@ -175,7 +175,7 @@ export default function SideBar({ open, onClose, menuItems, activeItem, onSelect
       )}
 
       <aside
-        className={`fixed bottom-0 left-0 top-0 z-50 w-64 border-r border-slate-200 bg-white p-4 transition-all duration-300 ease-in-out md:sticky md:top-16 md:z-30 md:h-[calc(100vh-4rem)] md:translate-x-0 overflow-hidden ${
+        className={`fixed bottom-0 left-0 top-0 z-50 w-64 border-r border-slate-200 bg-white p-4 transition-all duration-300 ease-in-out md:sticky md:top-14 md:z-30 md:h-[calc(100vh-4rem)] md:translate-x-0 overflow-hidden ${
           open ? 'translate-x-0 md:w-64' : '-translate-x-full md:w-0 md:border-r-0 md:p-0'
         }`}
       >
