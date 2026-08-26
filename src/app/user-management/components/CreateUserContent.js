@@ -1,7 +1,8 @@
 import React, { useState, useRef } from 'react';
 import EmailField from '../../../components/EmailField';
-import NameField from '../../../components//NameField';
-import Authentication from '../../login/Authentication';
+import NameField from '../../../components/NameField';
+import ApiClient from '../../api/ApiClient';
+import ApiError from '../../api/ApiError';
 
 export const pageMeta = {
   title: '',
@@ -60,33 +61,20 @@ export default function CreateUserContent({ onNotify }) {
 
     setSubmitting(true);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/v1/user/create`, {
-        method: 'POST',
-        headers: { 
-            'Content-Type': 'application/json', 
-            'Authorization': `Bearer ${Authentication.getInstance().getJwt()}` 
-        },
-        body: JSON.stringify(form),
-      });
+      await ApiClient.getInstance().post('/api/v1/user/create', form);
 
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => null);
-        const message = data?.message || 'Failed to create user.';
-
-        if (data?.errors) {
-          setErrors(data.errors);
-        }
-
-        onNotify?.('Create user failed', message, "error");
-        return;
-      }
       setForm(initialForm);
-      onNotify?.('Successfully Created', '', "success");
-
+      onNotify?.('Successfully Created', '', 'success');
     } catch (err) {
-        console.error(err)
-      onNotify?.('Create user failed', 'Something went wrong. Please try again.', "error");
+      if (err instanceof ApiError) {
+        if (err.data?.errors) {
+          setErrors(err.data.errors);
+        }
+        onNotify?.('Create user failed', err.message, 'error');
+      } else {
+        console.error(err);
+        onNotify?.('Create user failed', 'Something went wrong. Please try again.', 'error');
+      }
     } finally {
       setSubmitting(false);
     }
