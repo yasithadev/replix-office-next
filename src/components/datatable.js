@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useLayoutEffect } from 'react';
 import {
   Search,
   ChevronDown,
@@ -61,28 +61,54 @@ function getPaginationRange(current, total, siblingCount = 1) {
   return [1, 'left-ellipsis', ...middleRange, 'right-ellipsis', total];
 }
 
+// Sticky-column layout constants. Columns can override their footprint via
+// an optional `width` (px) on their column definition; unspecified columns
+// fall back to DEFAULT_COLUMN_WIDTH. These only need to be reasonably close
+// to the rendered width — sticky positioning tolerates small mismatches, it
+// just won't line up pixel-perfectly with the column beneath it if actual
+// content is much wider/narrower.
+const CHECKBOX_COL_WIDTH = 44;
+const DEFAULT_COLUMN_WIDTH = 160;
+
 /**
  * DataTable
  * Fully self-contained and data-shape agnostic: owns search, sorting,
  * density, column visibility, export (CSV/JSON/print), row selection +
- * bulk delete, and pagination. The parent only supplies the raw dataset,
- * column config, and callbacks for row-level actions and bulk delete —
- * no field-specific filter dropdowns are baked in, since valid filter
- * values are always data-specific. If a consumer needs faceted filtering
- * (e.g. by department/status), that's built in the parent by filtering
- * `data` before it's passed in.
+ * bulk delete, pagination, and column freezing. The parent only supplies
+ * the raw dataset, column config, and callbacks for row-level actions and
+ * bulk delete — no field-specific filter dropdowns are baked in, since
+ * valid filter values are always data-specific. If a consumer needs
+ * faceted filtering (e.g. by department/status), that's built in the
+ * parent by filtering `data` before it's passed in.
  *
  * Props:
  *  - data: raw array of records (full, unfiltered)
- *  - columns: [{ key, label, sortable }] — also drives the Columns menu
+ *  - columns: [{ key, label, sortable, width }] — also drives the Columns
+ *    menu; `width` (px) is optional and only used to compute frozen-column
+ *    offsets, default DEFAULT_COLUMN_WIDTH
  *  - rowKey: field used as each row's unique id (default 'id')
  *  - searchKeys: fields the search box matches against (default: all
  *    non-'actions' column keys)
  *  - darkMode: theme flag, controlled by the parent
+ *  - selectable: whether to show the checkbox column + bulk-select bar
+ *    (default true). Set false to hide row selection entirely. When true,
+ *    the checkbox column is always frozen to the left automatically.
+ *  - defaultPinnedColumns: array of column keys frozen to the left
+ *    (default []). Fixed by the parent, not user-toggleable — frozen
+ *    columns always stack in their original left-to-right column order
+ *    and stay visible while the table scrolls horizontally.
+ *  - defaultPinnedRightColumns: array of column keys frozen to the right
+ *    (default []), e.g. ['actions']. Same rules as the left side, mirrored:
+ *    fixed by the parent, and columns stack in their original column
+ *    order with the last one in `columns` sitting flush against the true
+ *    right edge. A key should only appear in one of the two pinned arrays
+ *    — if it's in both, the left pin wins.
  *  - onView / onEdit / onDelete: (row) => void — row action callbacks
  *  - onBulkDelete: (ids: Array) => void — called with selected row ids;
  *    parent is responsible for actually removing them from `data`
  *  - exportFilenamePrefix: filename prefix for CSV/JSON export
+ *  - showDensityToggle / showColumnsMenu / showExportMenu: individually
+ *    hide these toolbar controls (all default true)
  *  - defaultPageSize / defaultSort: initial pagination + sort state
  */
 export default function DataTable({
@@ -91,6 +117,12 @@ export default function DataTable({
   rowKey = 'id',
   searchKeys,
   darkMode = false,
+  selectable = true,
+  defaultPinnedColumns = [],
+  defaultPinnedRightColumns = [],
+  showDensityToggle = true,
+  showColumnsMenu = true,
+  showExportMenu = true,
   onView,
   onEdit,
   onDelete,
@@ -115,8 +147,176 @@ export default function DataTable({
   );
   const [isColumnMenuOpen, setIsColumnMenuOpen] = useState(false);
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
+  const [columnMenuAlign, setColumnMenuAlign] = useState('right'); // 'right' | 'left'
+  const columnMenuButtonRef = useRef(null);
+  const COLUMN_MENU_WIDTH = 192; // matches the panel's w-48
+
+  // The panel normally hangs right-aligned off the button (right-0), so it
+  // opens leftward. On narrow screens the toolbar wraps and this button can
+  // end up close to the left edge, in which case opening leftward pushes
+  // part of the panel past x=0 — clipped off-screen and invisible. Flip to
+  // left-aligned (opens rightward instead) whenever there isn't enough room.
+  useLayoutEffect(() => {
+    if (!isColumnMenuOpen) return;
+    const button = columnMenuButtonRef.current;
+    if (!button) return;
+    const rect = button.getBoundingClientRect();
+    setColumnMenuAlign(rect.right - COLUMN_MENU_WIDTH < 0 ? 'left' : 'right');
+  }, [isColumnMenuOpen]);
 
   const densityClass = getDensityClass(density);
+
+  // Fixed by the parent via `defaultPinnedColumns` / `defaultPinnedRightColumns`
+  // — not user-toggleable, so these are just aliases, not stateful.
+  const pinnedColumns = defaultPinnedColumns;
+  const pinnedRightColumns = defaultPinnedRightColumns;
+
+  const columnByKey = useMemo(() => Object.fromEntries(columns.map((c) => [c.key, c])), [columns]);
+
+  // Actual rendered width (px) of every frozen header cell. A plain
+  // post-render measurement isn't enough on its own: layout can shift for
+  // reasons that happen *outside* a React render entirely — most commonly
+  // a web font finishing its swap-in after first paint (fallback-font
+  // metrics vs. the real font), but also window resizes or a scrollbar
+  // appearing. A ResizeObserver catches all of those, so pinned columns
+  // stay flush against each other instead of drifting back into a gap.
+  // Refs are only attached to cells that are currently pinned (see the ref
+  // callbacks below), so this map only ever holds sizes for columns that
+  // actually need one.
+  const stickyHeaderRefs = useRef({});
+  const [measuredWidths, setMeasuredWidths] = useState({});
+
+  const resizeObserverRef = useRef(null);
+  if (resizeObserverRef.current === null && typeof ResizeObserver !== 'undefined') {
+    resizeObserverRef.current = new ResizeObserver((entries) => {
+      setMeasuredWidths((prev) => {
+        let changed = false;
+        const next = { ...prev };
+        entries.forEach((entry) => {
+          const key = entry.target.dataset.stickyKey;
+          if (!key) return;
+          const width = entry.target.offsetWidth;
+          if (next[key] !== width) {
+            next[key] = width;
+            changed = true;
+          }
+        });
+        return changed ? next : prev;
+      });
+    });
+  }
+
+  useEffect(() => {
+    return () => resizeObserverRef.current?.disconnect();
+  }, []);
+
+  // Also re-measure synchronously after every render (before paint), so a
+  // brand-new pinned cell — or one whose content changed on this render —
+  // is correct immediately rather than waiting for the observer to fire.
+  useLayoutEffect(() => {
+    const next = {};
+    Object.entries(stickyHeaderRefs.current).forEach(([key, node]) => {
+      if (node) next[key] = node.offsetWidth;
+    });
+    setMeasuredWidths((prev) => {
+      const keys = Object.keys(next);
+      const changed =
+        keys.length !== Object.keys(prev).length || keys.some((k) => prev[k] !== next[k]);
+      return changed ? next : prev;
+    });
+  });
+
+  const widthFor = (key) =>
+    measuredWidths[key] ?? (key === '__select__' ? CHECKBOX_COL_WIDTH : columnByKey[key]?.width ?? DEFAULT_COLUMN_WIDTH);
+
+  // Left offset (px) for every column frozen to the left, keyed by column
+  // key (the checkbox column uses the reserved key '__select__'). Offsets
+  // are computed in the columns' original left-to-right order, so frozen
+  // columns always stack the same way the table lays them out.
+  const leftStickyOffsets = useMemo(() => {
+    const offsets = {};
+    let cursor = 0;
+    if (selectable) {
+      offsets.__select__ = cursor;
+      cursor += widthFor('__select__');
+    }
+    columns.forEach((col) => {
+      if (columnVisibility[col.key] && pinnedColumns.includes(col.key)) {
+        offsets[col.key] = cursor;
+        cursor += widthFor(col.key);
+      }
+    });
+    return offsets;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [columns, columnVisibility, pinnedColumns, selectable, measuredWidths]);
+
+  // Right offset (px) for every column frozen to the right. Walked from the
+  // end of `columns` backward so the last column in the table (visually
+  // rightmost) sits flush against the true right edge, and any earlier
+  // right-pinned columns stack progressively further left of it — same
+  // left-to-right ordering rule as the left side, mirrored.
+  const rightStickyOffsets = useMemo(() => {
+    const offsets = {};
+    let cursor = 0;
+    for (let i = columns.length - 1; i >= 0; i--) {
+      const col = columns[i];
+      if (columnVisibility[col.key] && pinnedRightColumns.includes(col.key)) {
+        offsets[col.key] = cursor;
+        cursor += widthFor(col.key);
+      }
+    }
+    return offsets;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [columns, columnVisibility, pinnedRightColumns, measuredWidths]);
+
+  // Divider shadow markers: the boundary between the frozen-left area and
+  // the scrollable area sits on the left group's *largest* offset (i.e.
+  // its rightmost member); the boundary for the frozen-right area sits on
+  // the right group's *largest* offset too (i.e. its leftmost member,
+  // since right offsets grow moving away from the true right edge).
+  const lastLeftStickyKey = useMemo(() => {
+    const keys = Object.keys(leftStickyOffsets);
+    if (keys.length === 0) return null;
+    return keys.reduce((a, b) => (leftStickyOffsets[a] > leftStickyOffsets[b] ? a : b));
+  }, [leftStickyOffsets]);
+
+  const firstRightStickyKey = useMemo(() => {
+    const keys = Object.keys(rightStickyOffsets);
+    if (keys.length === 0) return null;
+    return keys.reduce((a, b) => (rightStickyOffsets[a] > rightStickyOffsets[b] ? a : b));
+  }, [rightStickyOffsets]);
+
+  // Attach to the header <th> of a pinned column (checkbox uses '__select__')
+  // so its rendered width can be measured, and kept in sync via the
+  // ResizeObserver above for any layout shift that happens outside a React
+  // render (font swap, resize, etc). Cheap no-op for non-pinned cells.
+  const stickyRef = (key) => (node) => {
+    const prevNode = stickyHeaderRefs.current[key];
+    if (prevNode && resizeObserverRef.current) {
+      resizeObserverRef.current.unobserve(prevNode);
+    }
+    stickyHeaderRefs.current[key] = node;
+    if (node) {
+      node.dataset.stickyKey = key;
+      resizeObserverRef.current?.observe(node);
+    }
+  };
+
+  const getStickyProps = (key) => {
+    if (key in leftStickyOffsets) {
+      return {
+        style: { position: 'sticky', left: `${leftStickyOffsets[key]}px`, zIndex: key === '__select__' ? 22 : 21 },
+        className: key === lastLeftStickyKey ? 'shadow-[4px_0_6px_-4px_rgba(0,0,0,0.25)]' : ''
+      };
+    }
+    if (key in rightStickyOffsets) {
+      return {
+        style: { position: 'sticky', right: `${rightStickyOffsets[key]}px`, zIndex: 21 },
+        className: key === firstRightStickyKey ? 'shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.25)]' : ''
+      };
+    }
+    return { style: undefined, className: '' };
+  };
 
   const filteredAndSortedData = useMemo(() => {
     return data
@@ -250,134 +450,145 @@ export default function DataTable({
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs rounded-full p-1 hover:bg-slate-200 dark:hover:bg-slate-800"
+                className={`absolute right-3 top-1/2 -translate-y-1/2 text-xs rounded-full p-1 ${
+                  darkMode ? 'hover:bg-slate-800' : 'hover:bg-slate-200'
+                }`}
               >
                 <X className="w-3.5 h-3.5" />
               </button>
             )}
           </div>
 
-          <div className="flex flex-wrap items-center gap-2.5">
-            {/* Density Toggle */}
-            <button
-              onClick={() => {
-                const modes = ['compact', 'normal', 'spacious'];
-                const nextIndex = (modes.indexOf(density) + 1) % modes.length;
-                setDensity(modes[nextIndex]);
-              }}
-              className={`p-2.5 rounded-xl border flex items-center space-x-1.5 text-xs font-medium transition-all ${
-                darkMode
-                  ? 'bg-slate-950 border-slate-800 hover:bg-slate-800 text-slate-300'
-                  : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-700'
-              }`}
-              title="Table Density"
-            >
-              <SlidersHorizontal className="w-4 h-4 text-indigo-500" />
-              <span className="capitalize hidden sm:inline">{density}</span>
-            </button>
+          {(showDensityToggle || showColumnsMenu || showExportMenu) && (
+            <div className="flex flex-wrap items-center gap-2.5">
+              {/* Density Toggle */}
+              {showDensityToggle && (
+                <button
+                onClick={() => {
+                  const modes = ['compact', 'normal', 'spacious'];
+                  const nextIndex = (modes.indexOf(density) + 1) % modes.length;
+                  setDensity(modes[nextIndex]);
+                }}
+                className={`p-2.5 rounded-xl border flex items-center space-x-1.5 text-xs font-medium transition-all ${
+                  darkMode
+                    ? 'bg-slate-950 border-slate-800 hover:bg-slate-800 text-slate-300'
+                    : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-700'
+                }`}
+                title="Table Density"
+              >
+                <SlidersHorizontal className="w-4 h-4 text-indigo-500" />
+                <span className="capitalize hidden sm:inline">{density}</span>
+              </button>
+            )}
 
             {/* Columns Visibility Menu */}
-            <div className="relative">
-              <button
-                onClick={() => setIsColumnMenuOpen(!isColumnMenuOpen)}
-                className={`p-2.5 rounded-xl border flex items-center space-x-1.5 text-xs font-medium transition-all ${
-                  darkMode
-                    ? 'bg-slate-950 border-slate-800 hover:bg-slate-800 text-slate-300'
-                    : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-700'
-                }`}
-              >
-                <Eye className="w-4 h-4 text-indigo-500" />
-                <span className="hidden sm:inline">Columns</span>
-              </button>
-
-              {isColumnMenuOpen && (
-                <div
-                  className={`absolute right-0 mt-2 w-48 rounded-xl border shadow-xl z-30 p-2 space-y-1 ${
-                    darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
+            {showColumnsMenu && (
+              <div className="relative">
+                <button
+                  ref={columnMenuButtonRef}
+                  onClick={() => setIsColumnMenuOpen(!isColumnMenuOpen)}
+                  className={`p-2.5 rounded-xl border flex items-center space-x-1.5 text-xs font-medium transition-all ${
+                    darkMode
+                      ? 'bg-slate-950 border-slate-800 hover:bg-slate-800 text-slate-300'
+                      : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-700'
                   }`}
                 >
-                  <p className="text-xs font-semibold px-2 py-1 text-slate-400">Toggle Column Visibility</p>
-                  <div className="my-1 border-t border-slate-200 dark:border-slate-800"></div>
-                  {columns.map((col) => (
-                    <label
-                      key={col.key}
-                      className={`flex items-center space-x-2 px-2 py-1.5 rounded-lg text-xs cursor-pointer ${
-                        darkMode ? 'hover:bg-slate-800' : 'hover:bg-slate-100'
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={columnVisibility[col.key]}
-                        onChange={(e) =>
-                          setColumnVisibility((prev) => ({ ...prev, [col.key]: e.target.checked }))
-                        }
-                        className="rounded text-indigo-600 focus:ring-indigo-500"
-                      />
-                      <span>{col.label}</span>
-                    </label>
-                  ))}
-                </div>
-              )}
-            </div>
+                  <Eye className="w-4 h-4 text-indigo-500" />
+                  <span className="hidden sm:inline">Columns</span>
+                </button>
+
+                {isColumnMenuOpen && (
+                  <div
+                    className={`absolute ${columnMenuAlign === 'right' ? 'right-0' : 'left-0'} mt-2 w-48 rounded-xl border shadow-xl z-30 p-2 space-y-1 ${
+                      darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
+                    }`}
+                  >
+                    <p className="text-xs font-semibold px-2 py-1 text-slate-400">Toggle Column Visibility</p>
+                    <div className={`my-1 border-t ${darkMode ? 'border-slate-800' : 'border-slate-200'}`}></div>
+                    {columns.map((col) => (
+                      <label
+                        key={col.key}
+                        className={`flex items-center space-x-2 px-2 py-1.5 rounded-lg text-xs cursor-pointer ${
+                          darkMode ? 'hover:bg-slate-800' : 'hover:bg-slate-100'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={columnVisibility[col.key]}
+                          onChange={(e) =>
+                            setColumnVisibility((prev) => ({ ...prev, [col.key]: e.target.checked }))
+                          }
+                          className="rounded text-indigo-600 focus:ring-indigo-500"
+                        />
+                        <span>{col.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Export Menu */}
-            <div className="relative">
-              <button
-                onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
-                className={`p-2.5 rounded-xl border flex items-center space-x-1.5 text-xs font-medium transition-all ${
-                  darkMode
-                    ? 'bg-slate-950 border-slate-800 hover:bg-slate-800 text-slate-300'
-                    : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-700'
-                }`}
-              >
-                <Download className="w-4 h-4 text-emerald-500" />
-                <span className="hidden sm:inline">Export</span>
-              </button>
-
-              {isExportMenuOpen && (
-                <div
-                  className={`absolute right-0 mt-2 w-44 rounded-xl border shadow-xl z-30 p-1.5 space-y-1 ${
-                    darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
+            {showExportMenu && (
+              <div className="relative">
+                <button
+                  onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
+                  className={`p-2.5 rounded-xl border flex items-center space-x-1.5 text-xs font-medium transition-all ${
+                    darkMode
+                      ? 'bg-slate-950 border-slate-800 hover:bg-slate-800 text-slate-300'
+                      : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-700'
                   }`}
                 >
-                  <button
-                    onClick={exportCSV}
-                    className={`w-full flex items-center space-x-2 px-3 py-2 rounded-lg text-xs transition-colors ${
-                      darkMode ? 'hover:bg-slate-800 text-slate-200' : 'hover:bg-slate-100 text-slate-700'
+                  <Download className="w-4 h-4 text-emerald-500" />
+                  <span className="hidden sm:inline">Export</span>
+                </button>
+
+                {isExportMenuOpen && (
+                  <div
+                    className={`absolute right-0 mt-2 w-44 rounded-xl border shadow-xl z-30 p-1.5 space-y-1 ${
+                      darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
                     }`}
                   >
-                    <FileSpreadsheet className="w-4 h-4 text-emerald-500" />
-                    <span>Export CSV</span>
-                  </button>
-                  <button
-                    onClick={exportJSON}
-                    className={`w-full flex items-center space-x-2 px-3 py-2 rounded-lg text-xs transition-colors ${
-                      darkMode ? 'hover:bg-slate-800 text-slate-200' : 'hover:bg-slate-100 text-slate-700'
-                    }`}
-                  >
-                    <FileJson className="w-4 h-4 text-amber-500" />
-                    <span>Export JSON</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      window.print();
-                      setIsExportMenuOpen(false);
-                    }}
-                    className={`w-full flex items-center space-x-2 px-3 py-2 rounded-lg text-xs transition-colors ${
-                      darkMode ? 'hover:bg-slate-800 text-slate-200' : 'hover:bg-slate-100 text-slate-700'
-                    }`}
-                  >
-                    <Printer className="w-4 h-4 text-blue-500" />
-                    <span>Print Document</span>
-                  </button>
-                </div>
-              )}
-            </div>
+                    <button
+                      onClick={exportCSV}
+                      className={`w-full flex items-center space-x-2 px-3 py-2 rounded-lg text-xs transition-colors ${
+                        darkMode ? 'hover:bg-slate-800 text-slate-200' : 'hover:bg-slate-100 text-slate-700'
+                      }`}
+                    >
+                      <FileSpreadsheet className="w-4 h-4 text-emerald-500" />
+                      <span>Export CSV</span>
+                    </button>
+                    <button
+                      onClick={exportJSON}
+                      className={`w-full flex items-center space-x-2 px-3 py-2 rounded-lg text-xs transition-colors ${
+                        darkMode ? 'hover:bg-slate-800 text-slate-200' : 'hover:bg-slate-100 text-slate-700'
+                      }`}
+                    >
+                      <FileJson className="w-4 h-4 text-amber-500" />
+                      <span>Export JSON</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        window.print();
+                        setIsExportMenuOpen(false);
+                      }}
+                      className={`w-full flex items-center space-x-2 px-3 py-2 rounded-lg text-xs transition-colors ${
+                        darkMode ? 'hover:bg-slate-800 text-slate-200' : 'hover:bg-slate-100 text-slate-700'
+                      }`}
+                    >
+                      <Printer className="w-4 h-4 text-blue-500" />
+                      <span>Print Document</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
+          )}
         </div>
 
         {/* Bulk selection bar */}
-        {selectedRows.size > 0 && (
+        {selectable && selectedRows.size > 0 && (
           <div className="flex items-center justify-between bg-indigo-500/10 border border-indigo-500/30 rounded-xl px-4 py-2 text-xs font-medium">
             <span className="text-indigo-600 dark:text-indigo-400">
               {selectedRows.size} {selectedRows.size === 1 ? 'record' : 'records'} selected
@@ -419,50 +630,61 @@ export default function DataTable({
               } text-xs uppercase tracking-wider font-semibold`}
             >
               <tr>
-                <th className="py-3 px-4 w-10">
-                  <input
-                    type="checkbox"
-                    onChange={handleSelectAll}
-                    checked={paginatedData.length > 0 && paginatedData.every((d) => selectedRows.has(d[rowKey]))}
-                    className="rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-                  />
-                </th>
-                {columns.map(
-                  (col) =>
-                    columnVisibility[col.key] && (
-                      <th
-                        key={col.key}
-                        onClick={() => col.sortable && handleSort(col.key)}
-                        className={`py-3.5 px-4 ${
-                          col.sortable ? 'cursor-pointer select-none hover:text-indigo-500 transition-colors' : ''
-                        }`}
-                      >
-                        <div className="flex items-center space-x-1.5">
-                          <span>{col.label}</span>
-                          {col.sortable && (
-                            <span className="text-slate-400">
-                              {sortConfig.key === col.key ? (
-                                sortConfig.direction === 'asc' ? (
-                                  <ChevronUp className="w-3.5 h-3.5 text-indigo-600" />
-                                ) : (
-                                  <ChevronDown className="w-3.5 h-3.5 text-indigo-600" />
-                                )
-                              ) : (
-                                <ChevronsUpDown className="w-3.5 h-3.5 opacity-40" />
-                              )}
-                            </span>
-                          )}
-                        </div>
-                      </th>
-                    )
+                {selectable && (
+                  <th
+                    ref={stickyRef('__select__')}
+                    className={`py-3 px-4 w-10 ${getStickyProps('__select__').className} ${
+                      darkMode ? 'bg-slate-900' : 'bg-slate-100'
+                    }`}
+                    style={getStickyProps('__select__').style}
+                  >
+                    <input
+                      type="checkbox"
+                      onChange={handleSelectAll}
+                      checked={paginatedData.length > 0 && paginatedData.every((d) => selectedRows.has(d[rowKey]))}
+                      className="rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                    />
+                  </th>
                 )}
+                {columns.map((col) => {
+                  if (!columnVisibility[col.key]) return null;
+                  const sticky = getStickyProps(col.key);
+                  return (
+                    <th
+                      key={col.key}
+                      ref={sticky.style ? stickyRef(col.key) : undefined}
+                      onClick={() => col.sortable && handleSort(col.key)}
+                      style={sticky.style}
+                      className={`py-3.5 px-4 ${sticky.className} ${
+                        sticky.style ? (darkMode ? 'bg-slate-900' : 'bg-slate-100') : ''
+                      } ${col.sortable ? 'cursor-pointer select-none hover:text-indigo-500 transition-colors' : ''}`}
+                    >
+                      <div className="flex items-center space-x-1.5">
+                        <span>{col.label}</span>
+                        {col.sortable && (
+                          <span className="text-slate-400">
+                            {sortConfig.key === col.key ? (
+                              sortConfig.direction === 'asc' ? (
+                                <ChevronUp className="w-3.5 h-3.5 text-indigo-600" />
+                              ) : (
+                                <ChevronDown className="w-3.5 h-3.5 text-indigo-600" />
+                              )
+                            ) : (
+                              <ChevronsUpDown className="w-3.5 h-3.5 opacity-40" />
+                            )}
+                          </span>
+                        )}
+                      </div>
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
 
             <tbody className={`divide-y ${darkMode ? 'divide-slate-800/80 text-slate-200' : 'divide-slate-100 text-slate-800'}`}>
               {paginatedData.length === 0 ? (
                 <tr>
-                  <td colSpan={columns.length + 1} className="py-12 text-center text-slate-400">
+                  <td colSpan={columns.length + (selectable ? 1 : 0)} className="py-12 text-center text-slate-400">
                     <div className="flex flex-col items-center justify-center space-y-2">
                       <AlertCircle className="w-8 h-8 text-slate-400 stroke-[1.5]" />
                       <p className="text-base font-medium">No records found matching criteria</p>
@@ -473,6 +695,22 @@ export default function DataTable({
               ) : (
                 paginatedData.map((row) => {
                   const isSelected = selectedRows.has(row[rowKey]);
+                  // Solid (non-translucent) background for frozen cells in this row — sticky
+                  // cells need full opacity to actually hide content scrolling behind them.
+                  const rowBg = isSelected
+                    ? darkMode
+                      ? 'bg-indigo-950'
+                      : 'bg-indigo-50'
+                    : darkMode
+                    ? 'bg-slate-900'
+                    : 'bg-white';
+                  const getCellSticky = (key) => {
+                    const sticky = getStickyProps(key);
+                    return {
+                      style: sticky.style,
+                      className: sticky.style ? `${sticky.className} ${rowBg}` : ''
+                    };
+                  };
                   return (
                     <tr
                       key={row[rowKey]}
@@ -480,26 +718,38 @@ export default function DataTable({
                         isSelected ? (darkMode ? 'bg-indigo-950/20' : 'bg-indigo-50/60') : ''
                       }`}
                     >
-                      <td className="py-3 px-4">
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => handleSelectRow(row[rowKey])}
-                          className="rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-                        />
-                      </td>
+                      {selectable && (
+                        <td
+                          className={`py-3 px-4 ${getCellSticky('__select__').className}`}
+                          style={getCellSticky('__select__').style}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => handleSelectRow(row[rowKey])}
+                            className="rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                          />
+                        </td>
+                      )}
 
                       {columnVisibility.id && (
-                        <td className={`${densityClass} font-mono font-medium text-xs text-indigo-500`}>{row.id}</td>
+                        <td
+                          className={`${densityClass} font-mono font-medium text-xs text-indigo-500 ${getCellSticky('id').className}`}
+                          style={getCellSticky('id').style}
+                        >
+                          {row.id}
+                        </td>
                       )}
 
                       {columnVisibility.name && (
-                        <td className={densityClass}>
+                        <td className={`${densityClass} ${getCellSticky('name').className}`} style={getCellSticky('name').style}>
                           <div className="flex items-center space-x-3">
                             <img
                               src={row.avatar}
                               alt={row.name}
-                              className="w-8 h-8 rounded-full object-cover border border-slate-200 dark:border-slate-700"
+                              className={`w-8 h-8 rounded-full object-cover border ${
+                                darkMode ? 'border-slate-700' : 'border-slate-200'
+                              }`}
                             />
                             <div>
                               <p className="font-semibold text-xs sm:text-sm leading-snug">{row.name}</p>
@@ -510,13 +760,13 @@ export default function DataTable({
                       )}
 
                       {columnVisibility.role && (
-                        <td className={densityClass}>
+                        <td className={`${densityClass} ${getCellSticky('role').className}`} style={getCellSticky('role').style}>
                           <span className="font-medium">{row.role}</span>
                         </td>
                       )}
 
                       {columnVisibility.department && (
-                        <td className={densityClass}>
+                        <td className={`${densityClass} ${getCellSticky('department').className}`} style={getCellSticky('department').style}>
                           <span
                             className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                               darkMode ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-700'
@@ -528,7 +778,7 @@ export default function DataTable({
                       )}
 
                       {columnVisibility.status && (
-                        <td className={densityClass}>
+                        <td className={`${densityClass} ${getCellSticky('status').className}`} style={getCellSticky('status').style}>
                           <span
                             className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
                               row.status === 'Active'
@@ -557,13 +807,18 @@ export default function DataTable({
                       )}
 
                       {columnVisibility.salary && (
-                        <td className={`${densityClass} font-mono font-medium`}>${row.salary.toLocaleString()}</td>
+                        <td
+                          className={`${densityClass} font-mono font-medium ${getCellSticky('salary').className}`}
+                          style={getCellSticky('salary').style}
+                        >
+                          ${row.salary.toLocaleString()}
+                        </td>
                       )}
 
                       {columnVisibility.performance && (
-                        <td className={densityClass}>
+                        <td className={`${densityClass} ${getCellSticky('performance').className}`} style={getCellSticky('performance').style}>
                           <div className="flex items-center space-x-2">
-                            <div className="w-16 bg-slate-200 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                            <div className={`w-16 rounded-full h-1.5 overflow-hidden ${darkMode ? 'bg-slate-800' : 'bg-slate-200'}`}>
                               <div
                                 className={`h-full rounded-full ${
                                   row.performance >= 90
@@ -581,13 +836,16 @@ export default function DataTable({
                       )}
 
                       {columnVisibility.joinDate && (
-                        <td className={`${densityClass} text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                        <td
+                          className={`${densityClass} text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'} ${getCellSticky('joinDate').className}`}
+                          style={getCellSticky('joinDate').style}
+                        >
                           {row.joinDate}
                         </td>
                       )}
 
                       {columnVisibility.actions && (
-                        <td className={densityClass}>
+                        <td className={`${densityClass} ${getCellSticky('actions').className}`} style={getCellSticky('actions').style}>
                           <div className="flex items-center space-x-1">
                             <button
                               onClick={() => onView?.(row)}
@@ -642,14 +900,14 @@ export default function DataTable({
           <div className="flex items-center space-x-4">
             <span className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
               Showing{' '}
-              <span className="font-semibold text-slate-900 dark:text-slate-100">
+              <span className={`font-semibold ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>
                 {filteredAndSortedData.length === 0 ? 0 : (currentPage - 1) * pageSize + 1}
               </span>{' '}
               to{' '}
-              <span className="font-semibold text-slate-900 dark:text-slate-100">
+              <span className={`font-semibold ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>
                 {Math.min(currentPage * pageSize, filteredAndSortedData.length)}
               </span>{' '}
-              of <span className="font-semibold text-slate-900 dark:text-slate-100">{filteredAndSortedData.length}</span> results
+              of <span className={`font-semibold ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>{filteredAndSortedData.length}</span> results
             </span>
 
             <div className="flex items-center space-x-1.5">

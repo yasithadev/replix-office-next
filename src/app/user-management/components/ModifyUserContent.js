@@ -210,10 +210,16 @@ export default function ModifyUserContent() {
         <DataTable
           data={data}
           columns={ALL_COLUMNS}
+          defaultPinnedColumns={['id','name']}  // optional — pinned from the start
+          defaultPinnedRightColumns={['actions']}
           searchKeys={['name', 'email', 'role', 'id']}
           filters={filters}
           darkMode={darkMode}
+          //selectable={false}
           exportFilenamePrefix="enterprise_users"
+          //showDensityToggle={false}   // hides the compact/normal/spacious toggle
+          //showColumnsMenu={false}     // hides the Columns visibility dropdown
+          //showExportMenu={false}      // hides Export (CSV/JSON/print)
           onView={(row) => {
             setSelectedRecord(row);
             setActiveModal('view');
