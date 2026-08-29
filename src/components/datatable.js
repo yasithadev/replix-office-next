@@ -1,7 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import {
   Search,
-  Filter,
   ChevronDown,
   ChevronUp,
   ChevronsUpDown,
@@ -30,12 +29,48 @@ const getDensityClass = (density) => {
   }
 };
 
+// Builds a bounded list of page numbers with ellipsis markers so the
+// pager never grows past a fixed width, no matter how many pages exist.
+// e.g. for current=7, total=20, siblingCount=1 -> [1, '…', 6,7,8, '…', 20]
+function getPaginationRange(current, total, siblingCount = 1) {
+  const totalSlots = siblingCount * 2 + 5; // first + last + current + siblings*2 + 2 ellipses
+
+  if (total <= totalSlots) {
+    return Array.from({ length: total }, (_, i) => i + 1);
+  }
+
+  const leftSibling = Math.max(current - siblingCount, 1);
+  const rightSibling = Math.min(current + siblingCount, total);
+
+  const showLeftEllipsis = leftSibling > 2;
+  const showRightEllipsis = rightSibling < total - 1;
+
+  if (!showLeftEllipsis && showRightEllipsis) {
+    const leftCount = 3 + siblingCount * 2;
+    const leftRange = Array.from({ length: leftCount }, (_, i) => i + 1);
+    return [...leftRange, 'right-ellipsis', total];
+  }
+
+  if (showLeftEllipsis && !showRightEllipsis) {
+    const rightCount = 3 + siblingCount * 2;
+    const rightRange = Array.from({ length: rightCount }, (_, i) => total - rightCount + i + 1);
+    return [1, 'left-ellipsis', ...rightRange];
+  }
+
+  const middleRange = Array.from({ length: rightSibling - leftSibling + 1 }, (_, i) => leftSibling + i);
+  return [1, 'left-ellipsis', ...middleRange, 'right-ellipsis', total];
+}
+
 /**
  * DataTable
- * Fully self-contained: owns search, per-field filters, sorting, density,
- * column visibility, export (CSV/JSON/print), row selection + bulk delete,
- * and pagination. The parent only supplies the raw dataset, column/filter
- * config, and callbacks for row-level actions and bulk delete.
+ * Fully self-contained and data-shape agnostic: owns search, sorting,
+ * density, column visibility, export (CSV/JSON/print), row selection +
+ * bulk delete, and pagination. The parent only supplies the raw dataset,
+ * column config, and callbacks for row-level actions and bulk delete —
+ * no field-specific filter dropdowns are baked in, since valid filter
+ * values are always data-specific. If a consumer needs faceted filtering
+ * (e.g. by department/status), that's built in the parent by filtering
+ * `data` before it's passed in.
  *
  * Props:
  *  - data: raw array of records (full, unfiltered)
@@ -43,8 +78,6 @@ const getDensityClass = (density) => {
  *  - rowKey: field used as each row's unique id (default 'id')
  *  - searchKeys: fields the search box matches against (default: all
  *    non-'actions' column keys)
- *  - filters: [{ key, label, options }] — renders one <select> per entry;
- *    'All' (or the option literally named 'All') means "no filter"
  *  - darkMode: theme flag, controlled by the parent
  *  - onView / onEdit / onDelete: (row) => void — row action callbacks
  *  - onBulkDelete: (ids: Array) => void — called with selected row ids;
@@ -57,7 +90,6 @@ export default function DataTable({
   columns,
   rowKey = 'id',
   searchKeys,
-  filters = [],
   darkMode = false,
   onView,
   onEdit,
@@ -73,14 +105,11 @@ export default function DataTable({
   );
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterValues, setFilterValues] = useState(() =>
-    Object.fromEntries(filters.map((f) => [f.key, 'All']))
-  );
   const [sortConfig, setSortConfig] = useState(defaultSort);
   const [selectedRows, setSelectedRows] = useState(new Set());
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(defaultPageSize);
-  const [density, setDensity] = useState('normal'); // 'compact' | 'normal' | 'spacious'
+  const [density, setDensity] = useState('compact'); // 'compact' | 'normal' | 'spacious'
   const [columnVisibility, setColumnVisibility] = useState(() =>
     Object.fromEntries(columns.map((c) => [c.key, true]))
   );
@@ -98,11 +127,7 @@ export default function DataTable({
             String(item[key] ?? '').toLowerCase().includes(searchQuery.toLowerCase())
           );
 
-        const matchesFilters = filters.every(
-          (f) => filterValues[f.key] === 'All' || item[f.key] === filterValues[f.key]
-        );
-
-        return matchesSearch && matchesFilters;
+        return matchesSearch;
       })
       .sort((a, b) => {
         if (!sortConfig.key) return 0;
@@ -118,13 +143,18 @@ export default function DataTable({
         if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
         return 0;
       });
-  }, [data, searchQuery, filterValues, filters, sortConfig, effectiveSearchKeys]);
+  }, [data, searchQuery, sortConfig, effectiveSearchKeys]);
 
   const totalPages = Math.ceil(filteredAndSortedData.length / pageSize) || 1;
   const paginatedData = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
     return filteredAndSortedData.slice(start, start + pageSize);
   }, [filteredAndSortedData, currentPage, pageSize]);
+
+  const paginationRange = useMemo(
+    () => getPaginationRange(currentPage, totalPages, 1),
+    [currentPage, totalPages]
+  );
 
   // Adjust page if search/filter shrinks total pages
   useEffect(() => {
@@ -200,7 +230,7 @@ export default function DataTable({
 
   return (
     <div className="space-y-4">
-      {/* Toolbar: search, filters, density, columns, export */}
+      {/* Toolbar: search, density, columns, export */}
       <div className={`p-4 rounded-2xl border space-y-4 ${darkMode ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}>
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           {/* Global Search Input */}
@@ -228,31 +258,6 @@ export default function DataTable({
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5">
-            {/* Per-field filter dropdowns */}
-            {filters.map((f, idx) => (
-              <div key={f.key} className="relative flex items-center">
-                {idx === 0 && (
-                  <Filter className={`absolute left-3 w-3.5 h-3.5 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`} />
-                )}
-                <select
-                  value={filterValues[f.key]}
-                  onChange={(e) => setFilterValues((prev) => ({ ...prev, [f.key]: e.target.value }))}
-                  className={`${idx === 0 ? 'pl-8' : 'px-3'} pr-8 py-2 rounded-xl text-sm border outline-none cursor-pointer appearance-none ${
-                    darkMode
-                      ? 'bg-slate-950 border-slate-800 text-slate-200 hover:bg-slate-900'
-                      : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
-                  }`}
-                >
-                  {f.options.map((opt) => (
-                    <option key={opt} value={opt}>
-                      {f.label}: {opt}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="w-3.5 h-3.5 absolute right-3 pointer-events-none opacity-50" />
-              </div>
-            ))}
-
             {/* Density Toggle */}
             <button
               onClick={() => {
@@ -461,7 +466,7 @@ export default function DataTable({
                     <div className="flex flex-col items-center justify-center space-y-2">
                       <AlertCircle className="w-8 h-8 text-slate-400 stroke-[1.5]" />
                       <p className="text-base font-medium">No records found matching criteria</p>
-                      <p className="text-xs text-slate-500">Try adjusting your search terms or active filters</p>
+                      <p className="text-xs text-slate-500">Try adjusting your search term</p>
                     </div>
                   </td>
                 </tr>
@@ -681,21 +686,32 @@ export default function DataTable({
             </button>
 
             <div className="flex items-center space-x-1 px-1">
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
-                <button
-                  key={pageNum}
-                  onClick={() => setCurrentPage(pageNum)}
-                  className={`w-7 h-7 rounded-lg text-xs font-medium transition-colors ${
-                    currentPage === pageNum
-                      ? 'bg-indigo-600 text-white font-bold'
-                      : darkMode
-                      ? 'hover:bg-slate-800 text-slate-400'
-                      : 'hover:bg-slate-200 text-slate-600'
-                  }`}
-                >
-                  {pageNum}
-                </button>
-              ))}
+              {paginationRange.map((pageNum, idx) =>
+                typeof pageNum === 'number' ? (
+                  <button
+                    key={pageNum}
+                    onClick={() => setCurrentPage(pageNum)}
+                    className={`w-7 h-7 rounded-lg text-xs font-medium transition-colors ${
+                      currentPage === pageNum
+                        ? 'bg-indigo-600 text-white font-bold'
+                        : darkMode
+                        ? 'hover:bg-slate-800 text-slate-400'
+                        : 'hover:bg-slate-200 text-slate-600'
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                ) : (
+                  <span
+                    key={`${pageNum}-${idx}`}
+                    className={`w-7 h-7 flex items-center justify-center text-xs select-none ${
+                      darkMode ? 'text-slate-600' : 'text-slate-400'
+                    }`}
+                  >
+                    …
+                  </span>
+                )
+              )}
             </div>
 
             <button
