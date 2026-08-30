@@ -221,9 +221,9 @@ export default function ModifyUserContent() {
           //showColumnsMenu={false}     // hides the Columns visibility dropdown
           //showExportMenu={false}      // hides Export (CSV/JSON/print)
           // 3. Dynamic row-level permission rules (Hide buttons conditionally per row)
-  canView={true} 
-  canEdit={true} // e.g., prevents editing Admin users
-  canDelete={true} // e.g., prevents deleting active users
+          canView={true} 
+          canEdit={true} // e.g., prevents editing Admin users
+          canDelete={true} // e.g., prevents deleting active users
           onView={(row) => {
             setSelectedRecord(row);
             setActiveModal('view');
@@ -432,11 +432,11 @@ export default function ModifyUserContent() {
             <div className="mt-6 space-y-3 text-sm">
               <div className="flex justify-between py-2 border-b border-slate-200 dark:border-slate-800">
                 <span className="text-slate-500 dark:text-slate-400 text-xs">Role Title</span>
-                <span className="font-medium text-xs">{selectedRecord.role}</span>
+                <span className="font-medium text-xs">{selectedRecord.username}</span>
               </div>
               <div className="flex justify-between py-2 border-b border-slate-200 dark:border-slate-800">
                 <span className="text-slate-500 dark:text-slate-400 text-xs">Department</span>
-                <span className="font-medium text-xs">{selectedRecord.department}</span>
+                <span className="font-medium text-xs">{selectedRecord.email}</span>
               </div>
               <div className="flex justify-between py-2 border-b border-slate-200 dark:border-slate-800">
                 <span className="text-slate-500 dark:text-slate-400 text-xs">Status</span>
@@ -444,11 +444,11 @@ export default function ModifyUserContent() {
               </div>
               <div className="flex justify-between py-2 border-b border-slate-200 dark:border-slate-800">
                 <span className="text-slate-500 dark:text-slate-400 text-xs">Annual Compensation</span>
-                <span className="font-mono font-medium text-xs">${selectedRecord.salary.toLocaleString()}</span>
+                <span className="font-mono font-medium text-xs">${selectedRecord.createdBy}</span>
               </div>
               <div className="flex justify-between py-2 border-b border-slate-200 dark:border-slate-800">
                 <span className="text-slate-500 dark:text-slate-400 text-xs">Performance Index</span>
-                <span className="font-medium text-xs text-emerald-500">{selectedRecord.performance}%</span>
+                <span className="font-medium text-xs text-emerald-500">{selectedRecord.createdDate}%</span>
               </div>
               <div className="flex justify-between py-2 border-b border-slate-200 dark:border-slate-800">
                 <span className="text-slate-500 dark:text-slate-400 text-xs">Joined Date</span>
