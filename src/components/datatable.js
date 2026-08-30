@@ -18,12 +18,11 @@ import {
   X
 } from 'lucide-react';
 
-// Removed 'normal' format. Only 'spacious' and default 'compact' remain.
 const getDensityClass = (density) => {
   if (density === 'spacious') {
     return 'py-2.5 px-4 text-sm leading-normal';
   }
-  return 'py-1 px-3 text-xs leading-tight'; // Default: Compact
+  return 'py-1 px-3 text-xs leading-tight';
 };
 
 function getPaginationRange(current, total, siblingCount = 1) {
@@ -65,6 +64,15 @@ export default function DataTable({
   searchKeys,
   darkMode = false,
   selectable = true,
+  showActionColumn, // Explicit override: true | false
+  showViewAction = true,
+  showEditAction = true,
+  showDeleteAction = true,
+  canView = true,   // Boolean toggle across all records
+  canEdit = true,   // Boolean toggle across all records
+  canDelete = true, // Boolean toggle across all records
+  actionColumnLabel = 'Actions',
+  actionColumnWidth = 120,
   defaultPinnedColumns = [],
   defaultPinnedRightColumns = [],
   showDensityToggle = true,
@@ -76,15 +84,50 @@ export default function DataTable({
   onBulkDelete,
   exportFilenamePrefix = 'export',
   defaultPageSize = 10,
-  defaultSort = { key: columns?.[0]?.key ?? null, direction: 'asc' }
+  defaultSort
 }) {
+  // Simple boolean check for each action's availability
+  const isViewActive = Boolean(onView && showViewAction && canView);
+  const isEditActive = Boolean(onEdit && showEditAction && canEdit);
+  const isDeleteActive = Boolean(onDelete && showDeleteAction && canDelete);
+
+  // Actions column visibility check
+  const isActionColumnVisible = useMemo(() => {
+    if (typeof showActionColumn === 'boolean') {
+      return showActionColumn;
+    }
+    return isViewActive || isEditActive || isDeleteActive;
+  }, [showActionColumn, isViewActive, isEditActive, isDeleteActive]);
+
+  // Dynamically attach the 'actions' column if enabled, while stripping any manual 'actions' definitions in prop columns
+  const activeColumns = useMemo(() => {
+    const userColumns = columns.filter((col) => col.key !== 'actions');
+    if (isActionColumnVisible) {
+      return [
+        ...userColumns,
+        {
+          key: 'actions',
+          label: actionColumnLabel,
+          sortable: false,
+          width: actionColumnWidth
+        }
+      ];
+    }
+    return userColumns;
+  }, [columns, isActionColumnVisible, actionColumnLabel, actionColumnWidth]);
+
   const effectiveSearchKeys = useMemo(
-    () => searchKeys || columns.filter((c) => c.key !== 'actions').map((c) => c.key),
-    [searchKeys, columns]
+    () => searchKeys || activeColumns.filter((c) => c.key !== 'actions').map((c) => c.key),
+    [searchKeys, activeColumns]
+  );
+
+  const initialSort = useMemo(
+    () => defaultSort || { key: activeColumns?.[0]?.key ?? null, direction: 'asc' },
+    [defaultSort, activeColumns]
   );
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [sortConfig, setSortConfig] = useState(defaultSort);
+  const [sortConfig, setSortConfig] = useState(initialSort);
   const [selectedRows, setSelectedRows] = useState(new Set());
   const [activeRowId, setActiveRowId] = useState(null);
   const [hoveredRowId, setHoveredRowId] = useState(null);
@@ -92,7 +135,7 @@ export default function DataTable({
   const [pageSize, setPageSize] = useState(defaultPageSize);
   const [density, setDensity] = useState('compact');
   const [columnVisibility, setColumnVisibility] = useState(() =>
-    Object.fromEntries(columns.map((c) => [c.key, true]))
+    Object.fromEntries(activeColumns.map((c) => [c.key, true]))
   );
   const [isColumnMenuOpen, setIsColumnMenuOpen] = useState(false);
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
@@ -113,7 +156,7 @@ export default function DataTable({
   const pinnedColumns = defaultPinnedColumns;
   const pinnedRightColumns = defaultPinnedRightColumns;
 
-  const columnByKey = useMemo(() => Object.fromEntries(columns.map((c) => [c.key, c])), [columns]);
+  const columnByKey = useMemo(() => Object.fromEntries(activeColumns.map((c) => [c.key, c])), [activeColumns]);
 
   const stickyHeaderRefs = useRef({});
   const [measuredWidths, setMeasuredWidths] = useState({});
@@ -165,27 +208,27 @@ export default function DataTable({
       offsets.__select__ = cursor;
       cursor += widthFor('__select__');
     }
-    columns.forEach((col) => {
+    activeColumns.forEach((col) => {
       if (columnVisibility[col.key] && pinnedColumns.includes(col.key)) {
         offsets[col.key] = cursor;
         cursor += widthFor(col.key);
       }
     });
     return offsets;
-  }, [columns, columnVisibility, pinnedColumns, selectable, measuredWidths]);
+  }, [activeColumns, columnVisibility, pinnedColumns, selectable, measuredWidths]);
 
   const rightStickyOffsets = useMemo(() => {
     const offsets = {};
     let cursor = 0;
-    for (let i = columns.length - 1; i >= 0; i--) {
-      const col = columns[i];
+    for (let i = activeColumns.length - 1; i >= 0; i--) {
+      const col = activeColumns[i];
       if (columnVisibility[col.key] && pinnedRightColumns.includes(col.key)) {
         offsets[col.key] = cursor;
         cursor += widthFor(col.key);
       }
     }
     return offsets;
-  }, [columns, columnVisibility, pinnedRightColumns, measuredWidths]);
+  }, [activeColumns, columnVisibility, pinnedRightColumns, measuredWidths]);
 
   const lastLeftStickyKey = useMemo(() => {
     const keys = Object.keys(leftStickyOffsets);
@@ -201,9 +244,9 @@ export default function DataTable({
 
   const firstVisibleColKey = useMemo(() => {
     if (selectable) return '__select__';
-    const firstCol = columns.find((c) => columnVisibility[c.key]);
+    const firstCol = activeColumns.find((c) => columnVisibility[c.key]);
     return firstCol ? firstCol.key : null;
-  }, [selectable, columns, columnVisibility]);
+  }, [selectable, activeColumns, columnVisibility]);
 
   const stickyRef = (key) => (node) => {
     const prevNode = stickyHeaderRefs.current[key];
@@ -310,8 +353,8 @@ export default function DataTable({
   };
 
   const exportCSV = () => {
-    const headers = columns.filter((c) => c.key !== 'actions').map((c) => c.label);
-    const keys = columns.filter((c) => c.key !== 'actions').map((c) => c.key);
+    const headers = activeColumns.filter((c) => c.key !== 'actions').map((c) => c.label);
+    const keys = activeColumns.filter((c) => c.key !== 'actions').map((c) => c.key);
     const rows = filteredAndSortedData.map((item) =>
       keys.map((k) => {
         const val = item[k];
@@ -412,7 +455,7 @@ export default function DataTable({
                     >
                       <p className="text-xs font-semibold px-2 py-1 text-slate-400">Toggle Column Visibility</p>
                       <div className={`my-1 border-t ${darkMode ? 'border-slate-800' : 'border-slate-200'}`}></div>
-                      {columns.map((col) => (
+                      {activeColumns.map((col) => (
                         <label
                           key={col.key}
                           className={`flex items-center space-x-2 px-2 py-1 rounded-lg text-xs cursor-pointer ${
@@ -552,7 +595,7 @@ export default function DataTable({
                     />
                   </th>
                 )}
-                {columns.map((col) => {
+                {activeColumns.map((col) => {
                   if (columnVisibility[col.key] === false) return null;
                   const sticky = getStickyProps(col.key);
                   return (
@@ -590,7 +633,7 @@ export default function DataTable({
             <tbody className={`divide-y ${darkMode ? 'divide-slate-800/80 text-slate-200' : 'divide-slate-100 text-slate-800'}`}>
               {paginatedData.length === 0 ? (
                 <tr>
-                  <td colSpan={columns.length + (selectable ? 1 : 0)} className="py-8 text-center text-slate-400">
+                  <td colSpan={activeColumns.length + (selectable ? 1 : 0)} className="py-8 text-center text-slate-400">
                     <div className="flex flex-col items-center justify-center space-y-1.5">
                       <AlertCircle className="w-6 h-6 text-slate-400 stroke-[1.5]" />
                       <p className="text-sm font-medium">No records found matching criteria</p>
@@ -604,7 +647,6 @@ export default function DataTable({
                   const isActive = activeRowId === row[rowKey];
                   const isHovered = hoveredRowId === row[rowKey];
 
-                  // Base row background state
                   const baseBg = isActive
                     ? darkMode
                       ? 'bg-indigo-950/80'
@@ -617,7 +659,6 @@ export default function DataTable({
                     ? 'bg-slate-900'
                     : 'bg-white';
 
-                  // Dynamic uniform background without CSS transition lag gaps
                   const cellBg = isHovered
                     ? darkMode
                       ? 'bg-slate-800/60'
@@ -659,7 +700,7 @@ export default function DataTable({
                         </td>
                       )}
 
-                      {columns.map((col) => {
+                      {activeColumns.map((col) => {
                         if (columnVisibility[col.key] === false) return null;
 
                         if (col.key === 'actions') {
@@ -670,7 +711,7 @@ export default function DataTable({
                               style={getCellSticky(col.key).style}
                             >
                               <div className="flex items-center space-x-1">
-                                {onView && (
+                                {isViewActive && (
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
@@ -686,7 +727,7 @@ export default function DataTable({
                                     <Eye className="w-3.5 h-3.5" />
                                   </button>
                                 )}
-                                {onEdit && (
+                                {isEditActive && (
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
@@ -702,7 +743,7 @@ export default function DataTable({
                                     <Edit3 className="w-3.5 h-3.5" />
                                   </button>
                                 )}
-                                {onDelete && (
+                                {isDeleteActive && (
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
