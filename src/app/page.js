@@ -8,8 +8,8 @@ import { pageMeta as dashboardMeta } from './components/sections/DashboardSectio
 import { pageMeta as analyticsMeta } from './components/sections/AnalyticsSection';
 import { pageMeta as projectsMeta } from './components/sections/ProjectsSection';
 import { pageMeta as settingsMeta } from './components/sections/SettingsSection';
-import CreateUserContent, { pageMeta as createUserMeta } from './user-management/components/CreateUserContent';
-import ModifyUserContent, { pageMeta as modifyUserMeta } from './user-management/components/ModifyUserContent';
+import CreateUserContent, { pageMeta as createUserMeta } from './user-management/CreateUserContent';
+import ModifyUserContent, { pageMeta as modifyUserMeta } from './user-management/ModifyUserContent';
 import NotificationStack from '../components/NotificationStack';
 
 const DashboardSection = dynamic(() => import('./components/sections/DashboardSection').then((mod) => mod.default), {

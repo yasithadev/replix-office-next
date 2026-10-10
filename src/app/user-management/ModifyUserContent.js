@@ -12,7 +12,7 @@ import {
   Moon,
   Trash2
 } from 'lucide-react';
-import DataTable from '../../../components/datatable';
+import DataTable from '../../components/datatable';
 
 export const pageMeta = {
   title: 'Modify User',
