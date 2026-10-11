@@ -1,8 +1,8 @@
 import React, { useState, useRef } from 'react';
 import EmailField from '../../components/EmailField';
 import NameField from '../../components/NameField';
-import ApiClient from '../api/ApiClient';
-import ApiError from '../api/ApiError';
+import ApiClient from '../../api/ApiClient';
+import ApiError from '../../api/ApiError';
 
 export const pageMeta = {
   title: '',

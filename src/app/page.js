@@ -4,30 +4,30 @@ import dynamic from 'next/dynamic';
 import React, { useEffect, useMemo, useState, useRef } from 'react';
 import SideBar from '../components/SideBar';
 import TopNav from '../components/TopNav';
-import { pageMeta as dashboardMeta } from './components/sections/DashboardSection';
-import { pageMeta as analyticsMeta } from './components/sections/AnalyticsSection';
-import { pageMeta as projectsMeta } from './components/sections/ProjectsSection';
-import { pageMeta as settingsMeta } from './components/sections/SettingsSection';
+import { pageMeta as dashboardMeta } from './dashboard/DashboardSection';
+import { pageMeta as analyticsMeta } from './Analytics/AnalyticsSection';
+import { pageMeta as projectsMeta } from './Projects/ProjectsSection';
+import { pageMeta as settingsMeta } from './settings/SettingsSection';
 import CreateUserContent, { pageMeta as createUserMeta } from './user-management/CreateUserContent';
 import ModifyUserContent, { pageMeta as modifyUserMeta } from './user-management/ModifyUserContent';
 import NotificationStack from '../components/NotificationStack';
 
-const DashboardSection = dynamic(() => import('./components/sections/DashboardSection').then((mod) => mod.default), {
+const DashboardSection = dynamic(() => import('./dashboard/DashboardSection').then((mod) => mod.default), {
   ssr: false,
   loading: () => <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">Loading dashboard…</div>,
 });
 
-const AnalyticsSection = dynamic(() => import('./components/sections/AnalyticsSection').then((mod) => mod.default), {
+const AnalyticsSection = dynamic(() => import('./Analytics/AnalyticsSection').then((mod) => mod.default), {
   ssr: false,
   loading: () => <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">Loading analytics…</div>,
 });
 
-const ProjectsSection = dynamic(() => import('./components/sections/ProjectsSection').then((mod) => mod.default), {
+const ProjectsSection = dynamic(() => import('./Projects/ProjectsSection').then((mod) => mod.default), {
   ssr: false,
   loading: () => <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">Loading projects…</div>,
 });
 
-const SettingsSection = dynamic(() => import('./components/sections/SettingsSection').then((mod) => mod.default), {
+const SettingsSection = dynamic(() => import('./settings/SettingsSection').then((mod) => mod.default), {
   ssr: false,
   loading: () => <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">Loading settings…</div>,
 });
@@ -131,6 +131,22 @@ export default function App() {
               { name: 'Manage User', icon: 'ShieldCheck', permission: ['READ_USER', 'user:edit', 'user:delete'] },
             ],
           },
+        ],
+      },
+      {
+        name: 'Ui-Components',
+        icon: 'Users',
+        children: [
+          {
+            name: 'L2 Menu item',
+            icon: 'Settings2',
+            children: [
+              { name: 'L3 Menu item1', icon: 'UserPlus' },
+              { name: 'L3 Menu item2', icon: 'UserCog', permission: 'READ_USER' },
+              { name: 'L3 Menu item3', icon: 'ShieldCheck', permission: ['READ_USER', 'user:edit', 'user:delete'] },
+            ],
+          },
+          { name: 'DataTable', icon: 'Home' },
         ],
       },
       { name: 'Settings', icon: 'Settings' },

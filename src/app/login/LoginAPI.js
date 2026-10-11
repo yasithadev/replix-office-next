@@ -1,5 +1,5 @@
-import ApiClient from '../api/ApiClient';
-import ApiError from '../api/ApiError';
+import ApiClient from '../../api/ApiClient';
+import ApiError from '../../api/ApiError';
 
 export async function makeLoginAPICall(email, password) {
   try {

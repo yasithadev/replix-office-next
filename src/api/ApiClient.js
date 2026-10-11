@@ -1,4 +1,4 @@
-import Authentication from '../login/Authentication';
+import Authentication from '../app/login/Authentication';
 import ApiError from './ApiError';
 
 class ApiClient{
