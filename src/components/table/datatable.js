@@ -1,6 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef, useLayoutEffect } from 'react';
 import {
-  Search,
   ChevronDown,
   ChevronUp,
   ChevronsUpDown,
@@ -12,10 +11,10 @@ import {
   FileSpreadsheet,
   FileJson,
   Printer,
-  AlertCircle,
-  X
+  AlertCircle
 } from 'lucide-react';
-import Pagination from './Pagination';
+import Pagination from '../Pagination';
+import SearchBar from './SearchBar';
 
 const getDensityClass = (density) => {
   if (density === 'spacious') {
@@ -355,30 +354,11 @@ export default function DataTable({
       {/* Toolbar */}
       <div className={`p-3 rounded-2xl border space-y-3 ${darkMode ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}>
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-          <div className="relative flex-1">
-            <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`} />
-            <input
-              type="text"
-              placeholder="Search..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className={`w-full pl-9 pr-8 py-1.5 rounded-xl text-xs border outline-none transition-all leading-normal ${
-                darkMode
-                  ? 'bg-slate-950 border-slate-800 focus:border-indigo-500 text-slate-100 placeholder-slate-500'
-                  : 'bg-slate-50 border-slate-200 focus:border-indigo-500 text-slate-900 placeholder-slate-400'
-              }`}
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery('')}
-                className={`absolute right-2.5 top-1/2 -translate-y-1/2 text-xs rounded-full p-0.5 ${
-                  darkMode ? 'hover:bg-slate-800' : 'hover:bg-slate-200'
-                }`}
-              >
-                <X className="w-3 h-3" />
-              </button>
-            )}
-          </div>
+          <SearchBar
+            value={searchQuery}
+            onChange={setSearchQuery}
+            darkMode={darkMode}
+          />
 
           {(showDensityToggle || showColumnsMenu || showExportMenu) && (
             <div className="flex flex-wrap items-center gap-2">
