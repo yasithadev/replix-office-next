@@ -14,7 +14,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import Pagination from '../Pagination';
-import SearchBar from './SearchBar';
+import SearchBar from '../SearchBar';
 
 const getDensityClass = (density) => {
   if (density === 'spacious') {
