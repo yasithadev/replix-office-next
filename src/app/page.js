@@ -32,6 +32,12 @@ const SettingsSection = dynamic(() => import('./settings/SettingsSection').then(
   loading: () => <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">Loading settings…</div>,
 });
 
+const DataTableImpl = dynamic(() => import('./uicomponents/DataTableImple').then((mod) => mod.default), {
+  ssr: false,
+  loading: () => <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">Loading settings…</div>,
+});
+
+
 export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeItem, setActiveItem] = useState('Home');
@@ -146,7 +152,7 @@ export default function App() {
               { name: 'L3 Menu item3', icon: 'ShieldCheck', permission: ['READ_USER', 'user:edit', 'user:delete'] },
             ],
           },
-          { name: 'DataTable', icon: 'Home' },
+          { name: 'Data Table', icon: 'Home' },
         ],
       },
       { name: 'Settings', icon: 'Settings' },
@@ -200,6 +206,12 @@ export default function App() {
         breadcrumb: modifyUserMeta.breadcrumb,
         active: modifyUserMeta.active ?? true,
         content: <ModifyUserContent />,
+      },
+      'Data Table': {
+        title: modifyUserMeta.title,
+        breadcrumb: modifyUserMeta.breadcrumb,
+        active: modifyUserMeta.active ?? true,
+        content: <DataTableImpl/>,
       },
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
