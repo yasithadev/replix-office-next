@@ -7,14 +7,11 @@ import {
   Eye,
   Edit3,
   Trash2,
-  Download,
-  FileSpreadsheet,
-  FileJson,
-  Printer,
   AlertCircle
 } from 'lucide-react';
 import Pagination from '../Pagination';
 import SearchBar from '../SearchBar';
+import ExportMenu from './exportMenu';
 
 const getDensityClass = (density) => {
   if (density === 'spacious') {
@@ -107,7 +104,6 @@ export default function DataTable({
     Object.fromEntries(activeColumns.map((c) => [c.key, true]))
   );
   const [isColumnMenuOpen, setIsColumnMenuOpen] = useState(false);
-  const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
   const [columnMenuAlign, setColumnMenuAlign] = useState('right');
   const columnMenuButtonRef = useRef(null);
   const COLUMN_MENU_WIDTH = 192;
@@ -316,39 +312,6 @@ export default function DataTable({
     setSelectedRows(new Set());
   };
 
-  const exportCSV = () => {
-    const headers = activeColumns.filter((c) => c.key !== 'actions').map((c) => c.label);
-    const keys = activeColumns.filter((c) => c.key !== 'actions').map((c) => c.key);
-    const rows = filteredAndSortedData.map((item) =>
-      keys.map((k) => {
-        const val = item[k];
-        return typeof val === 'string' ? `"${val}"` : val;
-      })
-    );
-    const csvContent =
-      'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `${exportFilenamePrefix}_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    setIsExportMenuOpen(false);
-  };
-
-  const exportJSON = () => {
-    const dataStr =
-      'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(filteredAndSortedData, null, 2));
-    const link = document.createElement('a');
-    link.setAttribute('href', dataStr);
-    link.setAttribute('download', `${exportFilenamePrefix}_${new Date().toISOString().split('T')[0]}.json`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    setIsExportMenuOpen(false);
-  };
-
   return (
     <div className="space-y-3">
       {/* Toolbar */}
@@ -424,58 +387,12 @@ export default function DataTable({
               )}
 
               {showExportMenu && (
-                <div className="relative">
-                  <button
-                    onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
-                    className={`py-1.5 px-3 rounded-xl border flex items-center space-x-1 text-xs font-medium transition-all ${
-                      darkMode
-                        ? 'bg-slate-950 border-slate-800 hover:bg-slate-800 text-slate-300'
-                        : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-700'
-                    }`}
-                  >
-                    <Download className="w-3.5 h-3.5 text-emerald-500" />
-                    <span className="hidden sm:inline">Export</span>
-                  </button>
-
-                  {isExportMenuOpen && (
-                    <div
-                      className={`absolute right-0 mt-1.5 w-44 rounded-xl border shadow-xl z-30 p-1.5 space-y-1 ${
-                        darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
-                      }`}
-                    >
-                      <button
-                        onClick={exportCSV}
-                        className={`w-full flex items-center space-x-2 px-3 py-1.5 rounded-lg text-xs transition-colors ${
-                          darkMode ? 'hover:bg-slate-800 text-slate-200' : 'hover:bg-slate-100 text-slate-700'
-                        }`}
-                      >
-                        <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-500" />
-                        <span>Export CSV</span>
-                      </button>
-                      <button
-                        onClick={exportJSON}
-                        className={`w-full flex items-center space-x-2 px-3 py-1.5 rounded-lg text-xs transition-colors ${
-                          darkMode ? 'hover:bg-slate-800 text-slate-200' : 'hover:bg-slate-100 text-slate-700'
-                        }`}
-                      >
-                        <FileJson className="w-3.5 h-3.5 text-amber-500" />
-                        <span>Export JSON</span>
-                      </button>
-                      <button
-                        onClick={() => {
-                          window.print();
-                          setIsExportMenuOpen(false);
-                        }}
-                        className={`w-full flex items-center space-x-2 px-3 py-1.5 rounded-lg text-xs transition-colors ${
-                          darkMode ? 'hover:bg-slate-800 text-slate-200' : 'hover:bg-slate-100 text-slate-700'
-                        }`}
-                      >
-                        <Printer className="w-3.5 h-3.5 text-blue-500" />
-                        <span>Print Document</span>
-                      </button>
-                    </div>
-                  )}
-                </div>
+                <ExportMenu
+                  data={filteredAndSortedData}
+                  columns={activeColumns}
+                  filenamePrefix={exportFilenamePrefix}
+                  darkMode={darkMode}
+                />
               )}
             </div>
           )}
