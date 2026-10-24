@@ -30,7 +30,7 @@ export function getPaginationRange(current, total, siblingCount = 1) {
   return [1, 'left-ellipsis', ...middleRange, 'right-ellipsis', total];
 }
 
-export default function Pagination({
+export default function TableFooter({
   currentPage,
   totalItems,
   pageSize,
