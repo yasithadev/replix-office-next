@@ -13,6 +13,7 @@ import TableFooter from './TableFooter';
 import SearchBar from '../SearchBar';
 import ExportMenu from './exportMenu';
 import ColumnsMenu from './ColumnsMenu';
+import TableDataProcessor from './TableDataProcessor';
 
 const getDensityClass = (density) => {
   if (density === 'spacious') {
@@ -229,44 +230,52 @@ export default function DataTable({
     return { style: undefined, className: '' };
   };
 
-  const filteredAndSortedData = useMemo(() => {
-    return data
-      .filter((item) => {
-        const matchesSearch =
-          searchQuery === '' ||
-          effectiveSearchKeys.some((key) =>
-            String(item[key] ?? '').toLowerCase().includes(searchQuery.toLowerCase())
-          );
+  // All searching / sorting / pagination lives in TableDataProcessor.
+  // To switch to server-side processing, only that class needs to change.
+  const processor = useMemo(
+    () => new TableDataProcessor({ data, searchKeys: effectiveSearchKeys }),
+    [data, effectiveSearchKeys]
+  );
 
-        return matchesSearch;
-      })
-      .sort((a, b) => {
-        if (!sortConfig.key) return 0;
-        let aVal = a[sortConfig.key];
-        let bVal = b[sortConfig.key];
-
-        if (typeof aVal === 'string') {
-          aVal = aVal.toLowerCase();
-          bVal = bVal.toLowerCase();
-        }
-
-        if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
-        if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
-        return 0;
-      });
-  }, [data, searchQuery, sortConfig, effectiveSearchKeys]);
-
-  const totalPages = Math.ceil(filteredAndSortedData.length / pageSize) || 1;
-  const paginatedData = useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
-    return filteredAndSortedData.slice(start, start + pageSize);
-  }, [filteredAndSortedData, currentPage, pageSize]);
+  const [processed, setProcessed] = useState({
+    rows: [],
+    totalItems: 0,
+    totalPages: 1,
+    exportRows: undefined
+  });
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (currentPage > totalPages) {
+    let cancelled = false;
+    setIsLoading(true);
+    // Promise.resolve handles both sync (client) and async (server) processors
+    Promise.resolve(
+      processor.process({ searchQuery, sortConfig, page: currentPage, pageSize })
+    )
+      .then((result) => {
+        if (cancelled) return;
+        setProcessed(result);
+        setIsLoading(false);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        console.error('DataTable: failed to process data', err);
+        setIsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [processor, searchQuery, sortConfig, currentPage, pageSize]);
+
+  const paginatedData = processed.rows;
+  const { totalItems, totalPages } = processed;
+  const exportData = processed.exportRows ?? processed.rows;
+
+  useEffect(() => {
+    if (!isLoading && currentPage > totalPages) {
       setCurrentPage(1);
     }
-  }, [totalPages, currentPage]);
+  }, [isLoading, totalPages, currentPage]);
 
   const handleSort = (key) => {
     setSortConfig((prev) => {
@@ -341,7 +350,7 @@ export default function DataTable({
 
               {showExportMenu && (
                 <ExportMenu
-                  data={filteredAndSortedData}
+                  data={exportData}
                   columns={activeColumns}
                   filenamePrefix={exportFilenamePrefix}
                   darkMode={darkMode}
@@ -446,7 +455,13 @@ export default function DataTable({
             </thead>
 
             <tbody className={`divide-y ${darkMode ? 'divide-slate-800/80 text-slate-200' : 'divide-slate-100 text-slate-800'}`}>
-              {paginatedData.length === 0 ? (
+              {paginatedData.length === 0 && isLoading ? (
+                <tr>
+                  <td colSpan={activeColumns.length + (selectable ? 1 : 0)} className="py-8 text-center text-xs text-slate-400">
+                    Loading...
+                  </td>
+                </tr>
+              ) : paginatedData.length === 0 ? (
                 <tr>
                   <td colSpan={activeColumns.length + (selectable ? 1 : 0)} className="py-8 text-center text-slate-400">
                     <div className="flex flex-col items-center justify-center space-y-1.5">
@@ -602,7 +617,7 @@ export default function DataTable({
         {/* Footer */}
         <TableFooter
           currentPage={currentPage}
-          totalItems={filteredAndSortedData.length}
+          totalItems={totalItems}
           pageSize={pageSize}
           onPageChange={setCurrentPage}
           onPageSizeChange={(size) => {
